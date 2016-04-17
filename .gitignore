@@ -1,0 +1,6 @@
+*.ecf
+*.ini
+*.conf
+tags
+main
+security

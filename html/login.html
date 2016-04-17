@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<!--[if IE 8]> 				 <html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>  	
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1"> 
+    <meta name="description" content="FFM Authentication"/>
+    <meta name="keywords" content="FUT, FFM, fut, fifa16, ultimate team, manager" />
+    <meta name="author" content="Elysion Software Ltda"/>
+    <link rel="shortcut icon" href="asset/img/ffm_logo.png"> 
+
+    <title>FFM-Login Page</title>
+    <!-- Bootstrap core CSS -->
+    <link href="asset/css/bootstrap.css" rel="stylesheet">
+    <!-- Demo CSS -->
+    <link href="asset/css/demo.css" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link href="asset/css/login-theme-15.css" rel="stylesheet">
+
+    <link href="asset/css/animate-custom.css" rel="stylesheet">
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+        <script src="js/html5shiv.js"></script>
+        <script src="js/respond.min.js"></script>
+    <![endif]-->
+
+    <script type="text/javascript">
+        function formIsValid() {
+            var user = document.forms["loginForm"]["userInput"].value;
+            var passw = document.forms["loginForm"]["passwordInput"].value;
+            if (user == null || user == "" || passw == null || passw == "") {
+                document.getElementById("loginBtn").disabled = true;
+            } else {
+                document.getElementById("loginBtn").disabled = false;
+            }
+        }
+    </script>
+</head>
+<body class="fade-in">
+    <!-- start Login box -->
+    <div class="container" id="login-block">
+        <div class="row">
+            <div class="col-sm-6 col-md-4 col-sm-offset-3 col-md-offset-4">
+
+                <div class="login-box clearfix animated flipInY">
+                    <div class="page-icon animated bounceInDown">
+                        <img  src="asset/img/user-icon.png" alt="Username: {{.LoginUserData.Username}}" />
+                    </div>
+                    <div class="login-logo">
+                        <img src="asset/img/brain_engine.png" class="product-logo" alt="Fifa FUT Manager" />
+                    </div> 
+                    <hr />
+                    <div class="login-form">
+                        <!-- Start Error box -->
+                        <div class="alert alert-danger {{if not .Message}}{{`hide`}}{{end}}">
+                            <button type="button" class="close" data-dismiss="alert"> &times;</button>
+                            {{.Message}}
+                        </div>
+                        <form id="loginForm" action="/ffm/auth/login/" method="POST">
+                            <input id="userInput" name="ffm_username" type="text" onchange="formIsValid()" placeholder="Username" class="input-field" required /> 
+                            <input id="passwordInput" name="ffm_password" type="password" onchange="formIsValid()" placeholder="Password" class="input-field" required /> 
+                            <button id="loginBtn" disabled type="submit" class="btn btn-login">Login</button> 
+                        </form>	
+                        <div class="login-links"> 
+                            <a href="forgot-password.html">
+                                Forgot password?
+                            </a>
+                            <br/>
+                        </div>      		
+                    </div> 			        	
+                </div>
+
+                <!-- Start Social connect buttons box --> 
+
+                <!-- <div class="social-login row">
+                    <div class="fb-login col-lg-6 col-md-12 animated flipInX">
+                    <a href="#" class="btn btn-facebook btn-block">Connect with <strong>Facebook</strong></a>
+                    </div>
+                    <div class="twit-login col-lg-6 col-md-12 animated flipInX">
+                    <a href="#" class="btn btn-twitter btn-block">Connect with <strong>Twitter</strong></a>
+                    </div>
+                    </div> -->
+
+                    <!-- End Social connect buttons box -->
+            </div>
+        </div>
+    </div>
+
+    <!-- End Login box -->
+    <footer class="container">
+        <p id="footer-text"><small>Copyright &copy; 2015 <a href="http://moon.e-pedion.com/ffm" class="elysion-link">Elysion Software Ltda</a></small></p>
+    </footer>
+
+    <!--
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+        -->
+        <script src="asset/js/jquery.min.js"></script>
+        <script src="asset/js/bootstrap.min.js"></script> 
+        <script src="asset/js/placeholder-shim.min.js"></script>        
+        <script src="asset/js/custom.js"></script>
+</body>
+</html>

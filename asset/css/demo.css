@@ -1,0 +1,159 @@
+/* ==========================================================================
+   Demo styles
+   ========================================================================== */
+  body{
+  	/*animation-name*/
+	-webkit-animation-name: fade-in;
+	-moz-animation-name: fade-in;
+	-ms-animation-name: fade-in;
+	-o-animation-name: fade-in;
+	animation-name: fade-in;
+	/*animation-duration*/
+	-webkit-animation-duration: 1s;
+	-moz-animation-duration: 1s;
+	-ms-animation-duration: 1s;
+	-o-animation-duration: 1s;
+	animation-duration: 1s;
+	/*animation-timing-function*/
+	-webkit-animation-timing-function: linear;
+	-moz-animation-timing-function: linear;
+	-ms-animation-timing-function: linear;
+	-o-animation-timing-function: linear;
+	animation-timing-function: linear;
+	/*animation-iteration-count*/
+	-webkit-animation-iteration-count: 1;
+	-moz-animation-iteration-count: 1;
+	-ms-animation-iteration-count: 1;
+	-o-animation-iteration-count: 1;
+	animation-iteration-count: 1;
+	-webkit-animation-fill-mode: both;
+	-moz-animation-fill-mode: both;
+	-ms-animation-fill-mode: both;
+	-o-animation-fill-mode: both;
+	animation-fill-mode: both; 
+  }
+ @-webkit-keyframes fade-in {
+ 	0% {
+		opacity: 0;
+	}
+	 
+	100% {
+		 
+		opacity: 1;
+	}
+}
+@-moz-keyframes fade-in {
+  	0% {
+		opacity: 0;
+	}
+	 
+	100% {
+		 
+		opacity: 1;
+	}
+}
+@-o-keyframes fade-in {
+  0% {
+		opacity: 0;
+	}
+	 
+	100% {
+		 
+		opacity: 1;
+	}
+}
+ 
+@keyframes fade-in {
+  0% {
+		opacity: 0;
+	}
+	 
+	100% {
+		 
+		opacity: 1;
+	}
+}
+
+  .top-bar{
+  	background: #000; 
+  	background: rgba(0, 0, 0, 0.3);
+  	text-align: center;
+  	padding: 7px;
+  	color:#FFF;
+  }
+  
+  .demo-btn{
+  	height: 30px;
+  	width: 30px;
+  	line-height:26px;
+  	display: inline-block;
+  	border:2px solid transparent;
+  	border-radius: 2px;
+  	color:#FFF;
+  	color: rgba(255, 255, 255, 0.8);
+  	margin:0 3px;
+  	-webkit-transition: all 0.3s ease-in-out;
+  	-moz-transition: all 0.3s ease-in-out;
+  	-ms-transition: all 0.3s ease-in-out;
+  	-o-transition: all 0.3s ease-in-out;
+  	transition: all 0.3s ease-in-out;
+  }
+  
+  .demo-btn:hover{
+  	opacity:0.8; 
+  	color:#FFF;
+  	border:2px solid #FFF;
+  	text-decoration: none;
+  }
+  
+  .demo-btn.active{
+  	border:2px solid #FFF;
+  }
+  
+  .th1{
+  	background: #16A085;
+  }
+  .th2{
+  	background: #2ECC71;
+  }
+  .th3{
+  	background:#3498DB;
+  }
+  .th4{
+  	background: #F1C40F;
+  }
+  .th5{
+  	background: #E67E22;
+  }
+  .th6{
+  	background: #E74C3C;
+  }
+  .th7{
+  	background: #ECF0F1;
+  }
+  .th8{
+  	background: #95A5A6;
+  }
+  .th9{
+  	background: #00C0E4;
+  }
+  .th10{
+  	background: #5BD999;
+  }
+  .th11{
+  	background: #7658F8;
+  }
+  .th12{
+  	background: #EAC14D;
+  }
+  .th13{
+  	background: #E6567A;
+  }
+  
+  .th14{
+  	background: #CB70D7;
+  }
+  .th15{
+  	background: #222D3A;
+  }
+ 
