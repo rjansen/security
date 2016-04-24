@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"farm.e-pedion.com/repo/security/config"
+	"farm.e-pedion.com/repo/config"
 )
 
 //Pool is a variable to hold the Database Pool

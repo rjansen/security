@@ -2,39 +2,11 @@ package database
 
 import (
     "database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"strings"
 )
-
-//JSONSerializable provides to a struct json external representation
-type JSONSerializable interface {
-	Marshal() ([]byte, error)
-    //Marshal(writer io.Writer) error
-	Unmarshal(reader io.Reader) error
-}
-
-//JSONObject adds support to marshall and unmarshall with JSON data type 
-type JSONObject struct {
-}
-
-//Marshal writes a json representation of Expansion
-func (j *JSONObject) Marshal() ([]byte, error) {
-	return json.Marshal(j)
-}
-
-// //Marshal reads a json representation of Expansion
-// func (j *JSONObject) Marshal(writer io.Writer) error {
-// 	return json.NewEncoder(writer).Encode(&j)
-// }
-
-//Unmarshal reads a json representation of Expansion
-func (j *JSONObject) Unmarshal(reader io.Reader) error {
-	return json.NewDecoder(reader).Decode(&j)
-}
 
 //Attachable creates a interface for structs do database actions
 type Attachable interface {
@@ -100,7 +72,7 @@ func (q *QuerySupport) QueryOne(query string, fetchFunc func(Fetchable) error, p
     }
 	q.Attach()
 	defer q.Release()
-	row := q.db.QueryRow(query, params)
+	row := q.db.QueryRow(query, params...)
 	return fetchFunc(row)
 }
 
@@ -117,7 +89,7 @@ func (q *QuerySupport) Query(query string, fetchFunc func(*sql.Rows) error, para
     }
 	q.Attach()
 	defer q.Release()
-	rows, err := q.db.Query(query, params)
+	rows, err := q.db.Query(query, params...)
     if err != nil {
         return err
     }
@@ -139,7 +111,7 @@ func (i *InsertSupport) Insert(insert string, params ...interface{}) error {
     }
 	i.Attach()
 	defer i.Release()
-    _, err := i.db.Exec(insert, params)
+    _, err := i.db.Exec(insert, params...)
     if err != nil {
         return err
     }
@@ -162,7 +134,7 @@ func (u *UpdateSupport) Update(update string, params ...interface{}) error {
     }
 	u.Attach()
 	defer u.Release()
-    result, err := u.db.Exec(update, params)
+    result, err := u.db.Exec(update, params...)
     if err != nil {
         return err
     }
@@ -193,7 +165,7 @@ func (d *DeleteSupport) Delete(delete string, params ...interface{}) error {
     }
 	d.Attach()
 	defer d.Release()
-	result, err := d.db.Exec(delete, params)
+	result, err := d.db.Exec(delete, params...)
 	if err != nil {
 		return err
 	}

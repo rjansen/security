@@ -1,161 +1,113 @@
 package identity
 
 import (
-    "database/sql"
+	"encoding/json"
+	"errors"
+	"io"
+	"log"
+	"time"
     "fmt"
-    "log"
-    "time"
-    "errors"
-    "strings"
-    "golang.org/x/crypto/bcrypt"
-    "farm.e-pedion.com/repo/security/database"
+
+	"github.com/SermoDigital/jose/crypto"
+	"github.com/SermoDigital/jose/jws"
+	"github.com/SermoDigital/jose/jwt"
 )
 
 var (
-    memoryCache = make(map[string]*Session)
+	jwtKey    = []byte("321ewqdsa#@!")
+	jwtCrypto = crypto.SigningMethodHS512
 )
 
-//ReadLogin loads the login representation of the username provided
-func ReadLogin(username string) (*Login, error) {
-    login := &Login{Username: username}
-    if err := login.Read(); err != nil {
-        return nil, err
-    }
-    return login, nil
-}
-
-//Hash hashs the plain text with bcrypt and default cost
-func Hash(plain string) ([]byte, error) {
-    return bcrypt.GenerateFromPassword([]byte(plain), bcrypt.DefaultCost)
-}
-
-//CheckHash compares if the the hashed is equal to the hashed plain value
-func CheckHash(hashed string, plain string) error {
-    return bcrypt.CompareHashAndPassword([]byte(hashed), []byte(plain))
-}
-
-//Login is the data struct of the user identity 
-type Login struct {
-    database.SQLSupport
-    Username string `json:"username"`
-    Name string `json:"name"`
-    Password string `json:"password"`
-    Roles []string `json:"roles"`
-}
-
-//CheckCredentials valoidatess if the the parameter is equal of the password field
-func (l *Login) CheckCredentials(password string) error {
-    return CheckHash(l.Username, password)
-}
-
-//Fetch fetchs the Row and sets the values into Login instance
-func (l *Login) Fetch(fetchable database.Fetchable) error {
-	return fetchable.Scan(&l.Username, &l.Name, &l.Password)
-}
-
-//FetchRoles fetchs all records in the provided role rows
-func (l *Login) FetchRoles(roleRows *sql.Rows) error {
-	var tempRoles []string
-    for roleRows.Next() {
-        var nextRole *string
-        roleRows.Scan(&nextRole)
-        tempRoles = append(tempRoles, *nextRole) 
-    }
-	l.Roles = tempRoles
-    return nil
-}
-
-//Read gets the entity representation from the database.
-func (l *Login) Read() error {
-	if strings.TrimSpace(l.Username) == "" {
-		return errors.New("data.Login.ReadError: Message='Login.Username is empty'")
+//NewSession creates a new session from JWT
+func NewSession(jwt jwt.JWT) (*Session, error) {
+	if jwt == nil {
+		return nil, errors.New("JWT is nil")
 	}
-	err := l.QueryOne("select username, name, password from login where username = ?", l.Fetch, l.Username)
-    if err != nil {
-        return err
-    }
-    err = l.Query("select rolename from login_role where username = ?", l.FetchRoles, l.Username)
-    if err != nil {
-        return err
-    }
-    return nil
+	log.Printf("JWTSessionClaims: Claims=%+v", jwt.Claims())
+	if !jwt.Claims().Has("iss") || !jwt.Claims().Has("id") || !jwt.Claims().Has("username") || !jwt.Claims().Has("roles") {
+		return nil, errors.New("Some required parameter is missing: iss, id, username, roles")
+	}
+	claimsRoles := jwt.Claims().Get("roles").([]interface{})
+	roles := make([]string, len(claimsRoles))
+	for k, v := range roles {
+		roles[k] = string(v)
+	}
+	var sessionData map[string]interface{}
+	if jwt.Claims().Has("data") {
+		sessionData = jwt.Claims().Get("data").(map[string]interface{})
+	}
+	session := &Session{
+		Issuer:   jwt.Claims().Get("iss").(string),
+		ID:       jwt.Claims().Get("id").(string),
+		Username: jwt.Claims().Get("username").(string),
+		Roles:    roles,
+		Data:     sessionData,
+		//Expires:  time.Unix(int64(jwt.Claims().Get("exp").(float64)), 0),
+	}
+	return session, nil
 }
 
-//Persist persists the entity representation in the database.
-func (l *Login) Persist() error {
-	if strings.TrimSpace(l.Username) == "" {
-		return errors.New("data.Login.PersistError: Message='Login.Username is empty'")
+//ReadSession loads session from JWT Token
+func ReadSession(token string) (*Session, error) {
+	jwt, err := jws.ParseJWT([]byte(token))
+	if err != nil {
+		return nil, err
 	}
-	if strings.TrimSpace(l.Name) == "" {
-		return errors.New("data.Login.PersistError: Message='Login.Name is empty'")
+	if err := jwt.Validate(jwtKey, jwtCrypto); err != nil {
+		return nil, err
 	}
-	if strings.TrimSpace(l.Password) == "" {
-		return errors.New("data.Login.PersistError: Message='Login.Password is empty'")
+	session, err := NewSession(jwt)
+	if err != nil {
+		return nil, err
 	}
-    hashedPassword, err := Hash(l.Password)
-    if err != nil {
-        return err
-    }
-    l.Password = string(hashedPassword)
-	
-    err = l.Insert("insert into login (username, name, password) values (?, ?, ?)", l.Username, l.Name, l.Password)
-    if err != nil {
-        return err
-    }
-    insertRole := "insert into login_role (username, rolename) values (?, ?)"
-    for _, role := range l.Roles {
-		insertRoleErr := l.Insert(insertRole, l.Username, role)
-		if insertRoleErr != nil {
-			log.Printf("data.Login.PersistError.InsertRoleEx: Message='%v'", insertRoleErr.Error())
-            return insertRoleErr
-		}
-	}
-    return nil
-}
-
-//Remove removes the entity representation from the database
-func (l *Login) Remove() error {
-	if strings.TrimSpace(l.Username) == "" {
-		return errors.New("data.Login.RemoveError: Message='Login.Username is empty'")
-	}
-	err := l.Delete("delete from login_role where username = ?", l.Username)
-    if err != nil {
-        return err
-    }
-    return l.Delete("delete from login where username = ?", l.Username)
-}
-
-//ReadSession loads session from cache
-func ReadSession(id string) (*Session, error) {
-    session := memoryCache[id]
-    if session == nil {
-        return nil, fmt.Errorf("identity.SessionNotFound: Message='SessionInvalid: ID=%v'", id)
-    }
-    if err := session.Refresh(); err != nil {
-        return nil, err
-    }
-    return session, nil
+	return session, nil
 }
 
 //Session represents a identity session in the system
 type Session struct {
-    database.JSONObject
-    ID string `json:"id"`
-    Token string `json:"token"`
-    CreateDate time.Time `json:"createDate"`
-    TTL int `json:"ttl"`
-    Expires time.Time `json:"expires"`
-    Username string `json:"username"`
-    Roles []string `json:"roles"`
+	Issuer     string                 `json:"iss"`
+	ID         string                 `json:"id"`
+	Username   string                 `json:"username"`
+	Roles      []string               `json:"roles"`
+	CreateDate time.Time              `json:"createDate"`
+	TTL        time.Duration          `json:"ttl"`
+	Expires    time.Time              `json:"expires"`
+	Data       map[string]interface{} `json:"data"`
+	Token      []byte                 `json:"-"`
 }
 
-//Set sets the session to cache
-func (s *Session) Set() error {
-    memoryCache[s.ID] = s
-    return nil
+func (s *Session) String() string {
+    return fmt.Sprintf("Session[Issuer=%v ID=%v Username=%v Roles=%v]", s.Issuer, s.ID, s.Username, s.Roles)
 }
 
-//Refresh refreshs the session data
-func (s *Session) Refresh() error {
-    return nil
+
+//Marshal creates a plain JSON representation of the Session
+func (s *Session) Marshal() ([]byte, error) {
+	return json.Marshal(&s)
+}
+
+//Unmarshal converts the parameter JSON representation into a instance of the Session
+func (s *Session) Unmarshal(reader io.Reader) error {
+	return json.NewDecoder(reader).Decode(&s)
+}
+
+//Serialize writes a JWT representation of this Session in the Token field
+func (s *Session) Serialize() error {
+	claims := jws.Claims{
+		"iss":      s.Issuer,
+		"id":       s.ID,
+		"username": s.Username,
+		"roles":    s.Roles,
+	}
+	if s.Data != nil {
+		claims.Set("data", s.Data)
+	}
+	//claims.SetIssuer("e-pedion.com")
+	jwt := jws.NewJWT(claims, jwtCrypto)
+	token, err := jwt.Serialize(jwtKey)
+	if err != nil {
+		return err
+	}
+	s.Token = token
+	return nil
 }

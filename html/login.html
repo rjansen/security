@@ -57,9 +57,9 @@
                             <button type="button" class="close" data-dismiss="alert"> &times;</button>
                             {{.Message}}
                         </div>
-                        <form id="loginForm" action="/ffm/auth/login/" method="POST">
-                            <input id="userInput" name="ffm_username" type="text" onchange="formIsValid()" placeholder="Username" class="input-field" required /> 
-                            <input id="passwordInput" name="ffm_password" type="password" onchange="formIsValid()" placeholder="Password" class="input-field" required /> 
+                        <form id="loginForm" action="{{.LoginUserData.FormURI}}" method="POST">
+                            <input id="userInput" name="{{.LoginUserData.FormUsernameField}}" type="text" onchange="formIsValid()" placeholder="Username" class="input-field" required /> 
+                            <input id="passwordInput" name="{{.LoginUserData.FormPasswordField}}" type="password" onchange="formIsValid()" placeholder="Password" class="input-field" required /> 
                             <button id="loginBtn" disabled type="submit" class="btn btn-login">Login</button> 
                         </form>	
                         <div class="login-links"> 
@@ -89,7 +89,7 @@
 
     <!-- End Login box -->
     <footer class="container">
-        <p id="footer-text"><small>Copyright &copy; 2015 <a href="http://moon.e-pedion.com/ffm" class="elysion-link">Elysion Software Ltda</a></small></p>
+        <p id="footer-text"><small>Copyright &copy; 2015 <a href="http://e-pedion.com/" class="elysion-link">Elysion Software Ltda</a></small></p>
     </footer>
 
     <!--

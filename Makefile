@@ -1,7 +1,7 @@
 BIN         := security
 REPO        := farm.e-pedion.com/repo/security
 BUILD       := $(shell git rev-parse --short HEAD)
-VERSION     := $(shell git describe --tags $(shell git rev-list --tags --max-count=1))
+#VERSION     := $(shell git describe --tags $(shell git rev-list --tags --max-count=1))
 MAKEFILE    := $(word $(words $(MAKEFILE_LIST)), $(MAKEFILE_LIST))
 BASE_DIR    := $(shell cd $(dir $(MAKEFILE)); pwd)
 ALLSOURCES  := $(shell find . -type f -name '*.go')
@@ -42,7 +42,6 @@ local:
 	@echo "Set enviroment to local"
 	$(eval TARGET_ENV = "local")
     
-
 .PHONY: run
 run: install
-	./security
+	./security --bind_address=:8000
