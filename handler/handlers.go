@@ -184,7 +184,16 @@ func (l *LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				if err == nil {
 					http.Redirect(w, r, l.ProxyConfig.RedirectURL, http.StatusFound)
 				} else {
-					parameters := &LoginPageData{MessageType: "Error", Message: "Invalid credentials", LoginUserData: LoginUserData{RemmenberUser: true}}
+                    parameters := &LoginPageData{
+                        MessageType: "Error", 
+                        Message: "Invalid credentials",
+                        LoginUserData: LoginUserData{
+                            RemmenberUser:     true,
+                            FormURI:           l.ProxyConfig.FormURI,
+                            FormUsernameField: l.ProxyConfig.FormUsernameField,
+                            FormPasswordField: l.ProxyConfig.FormPasswordField,
+                        },
+                    }
 					l.renderLoginPage(w, parameters)
 				}
 			}
@@ -218,15 +227,19 @@ func (l *LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func NewLogoutHandler() http.Handler {
 	return &SessionCookieHandler{
-		AuthenticatableHandler: &LogoutHandler{SecurityConfig: config.BindSecurityConfiguration()},
-		ProxyConfig:            config.BindProxyConfiguration(),
-		SecurityConfig:         config.BindSecurityConfiguration(),
+		AuthenticatableHandler: &LogoutHandler{
+			SecurityConfig: config.BindSecurityConfiguration(),
+			ProxyConfig:    config.BindProxyConfiguration(),
+		},
+		ProxyConfig:    config.BindProxyConfiguration(),
+		SecurityConfig: config.BindSecurityConfiguration(),
 	}
 }
 
 type LogoutHandler struct {
 	AuthenticatedHandler
 	*config.SecurityConfig
+	*config.ProxyConfig
 }
 
 func (l *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -245,7 +258,7 @@ func (l *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if matches, _ := regexp.MatchString("json|plain", r.Header.Get("Accept")); matches {
 		w.WriteHeader(http.StatusOK)
 	} else {
-		http.Redirect(w, r, "https://"+r.Header.Get("X-Forwarded-Host")+"/ffm/auth/login/", http.StatusFound)
+		http.Redirect(w, r, l.ProxyConfig.RedirectURL, http.StatusFound)
 	}
 }
 
@@ -270,7 +283,7 @@ func (h *GetSessionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Printf("SessionHandler.Get: URL[%q] PathParameters[%q] JobId[%v]!", r.URL.Path, urlPathParameters, urlPathParameters[3])
 
 		session := h.GetSession()
-        
+
 		jsonData, err := session.Marshal()
 		if err != nil {
 			log.Printf("SessionHandler.WriteResponseError: SessionId[%v] Error[%v]", session.ID, err)

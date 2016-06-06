@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"farm.e-pedion.com/repo/cache"
 	"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/security/database"
 	"farm.e-pedion.com/repo/security/identity"
@@ -26,11 +27,12 @@ const (
 )
 
 var (
-	memoryCache    = make(map[string]*identity.Session)
+	//memoryCache    = make(map[string]*identity.Session)
 	jwtKey         = []byte("321ewqdsa#@!")
 	jwtCrypto      = crypto.SigningMethodHS512
 	proxyConfig    = config.BindProxyConfiguration()
 	securityConfig = config.BindSecurityConfiguration()
+	cacheClient    = cache.NewClient()
 )
 
 //Authenticate loads the login representation and check his credentials
@@ -74,7 +76,7 @@ func Authenticate(username string, password string) (*PublicSession, error) {
 			return nil, err
 		}
 	}
-    if err := publicSession.Serialize(); err != nil {
+	if err := publicSession.Serialize(); err != nil {
 		log.Printf("data.Authenticate.JWTSerializeError: Username[%v] Error[%v]", username, err)
 		return nil, err
 	}
@@ -275,11 +277,17 @@ func (s *PublicSession) String() string {
 
 //Set sets the session to cache
 func (s *PublicSession) Set() error {
-	log.Printf("data.StoreSession: Session=%+v", s.PrivateSession)
-	memoryCache[s.ID] = s.PrivateSession
-	if memoryCache[s.ID] == nil {
-		return fmt.Errorf("data.SetSessionError: Message='ImpossibleToCacheSession: ID=%v'", s.ID)
+	ttl := int(s.PrivateSession.TTL / time.Second)
+	log.Printf("data.StoreSession: ID=%v TTL=%v Session=%+v", s.ID, ttl, s.PrivateSession)
+	sessionBytes, err := json.Marshal(s.PrivateSession)
+	if err != nil {
+		return fmt.Errorf("data.MarshalSessionError: Message='ImpossibleToMarshalSession: ID=%v Cause=%v'", s.ID, err.Error())
 	}
+	err = cacheClient.Set(s.ID, ttl, sessionBytes)
+	if err != nil {
+		return fmt.Errorf("data.SetSessionError: Message='ImpossibleToCacheSession: ID=%v Cause=%v'", s.ID, err.Error())
+	}
+	log.Printf("data.SessionStored: ID=%v TTL=%v Value=%+v", s.ID, ttl, string(sessionBytes))
 	return nil
 }
 
@@ -289,9 +297,15 @@ func (s *PublicSession) Get() error {
 		return errors.New("data.PublicSession.Get: Message='PublicSession.ID is empty'")
 	}
 	log.Printf("data.PublicSession.LoadSessionFromCache: ID=%v", s.ID)
-	privateSession := memoryCache[s.ID]
-	if privateSession == nil {
-		return fmt.Errorf("data.SessionInvalid: Message='SessionInvalid: Cache=%v ID=%v'", memoryCache, s.ID)
+	sessionBytes, err := cacheClient.Get(s.ID)
+	if err != nil {
+		return fmt.Errorf("data.GetSessionError: Message='ImpossibleToGetCachedSession: ID=%v Cause=%v'", s.ID, err.Error())
+	}
+	log.Printf("data.PublicSession.SessionLoadedFromCache: ID=%v Value=%+v", s.ID, string(sessionBytes))
+	privateSession := &identity.Session{}
+	err = json.Unmarshal(sessionBytes, &privateSession)
+	if err != nil {
+		return fmt.Errorf("data.UnmarshalSessionError: Message='ImpossibleToUnmarshalSession: ID=%v Cause=%v'", s.ID, err.Error())
 	}
 	s.PrivateSession = privateSession
 	return nil

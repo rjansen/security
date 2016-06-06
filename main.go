@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"farm.e-pedion.com/repo/cache"
 	"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/security/database"
 	"farm.e-pedion.com/repo/security/handler"
@@ -14,10 +15,13 @@ import (
 
 func main() {
 	configuration := config.BindConfiguration()
-    handlerConfig := configuration.HandlerConfig 
+	handlerConfig := configuration.HandlerConfig
 	config.Init()
 	log.Printf("main.ConfigurationLoaded: %+v", configuration)
 	if err := database.Setup(configuration.DBConfig); err != nil {
+		panic(err)
+	}
+	if err := cache.Setup(configuration.CacheConfig); err != nil {
 		panic(err)
 	}
 	webRemote, err := url.Parse(configuration.WebURL)

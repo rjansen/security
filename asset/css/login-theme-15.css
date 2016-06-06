@@ -121,7 +121,8 @@ body{
 }
 
 .product-logo {
-    background-color: #fff;
+    /*background-color: #fff;*/
+    background-color: #000;
     height: 96px;
     color:#339300;
     border:1px solid #50E600;

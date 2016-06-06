@@ -14,6 +14,10 @@ ECF := $(BASE_DIR)/security.ecf
 TARGET_ENV := 
 TEST_PKGS := 
 
+deps:
+	go get github.com/go-sql-driver/mysql
+	go get github.com/bradfitz/gomemcache/memcache 
+
 install:
 	go build farm.e-pedion.com/repo/security
 
