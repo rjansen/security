@@ -18,7 +18,7 @@ func main() {
 	handlerConfig := configuration.HandlerConfig
 	config.Init()
 	log.Printf("main.ConfigurationLoaded: %+v", configuration)
-	if err := database.Setup(configuration.DBConfig); err != nil {
+	if err := database.Setup(configuration.CassandraConfig); err != nil {
 		panic(err)
 	}
 	if err := cache.Setup(configuration.CacheConfig); err != nil {

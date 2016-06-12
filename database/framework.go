@@ -1,41 +1,41 @@
 package database
 
 import (
-    "database/sql"
 	"errors"
 	"fmt"
+	"github.com/gocql/gocql"
 	"log"
 	"strings"
 )
 
 //Attachable creates a interface for structs do database actions
 type Attachable interface {
-	SetDB(db *sql.DB) error
-	GetDB() (*sql.DB, error)
+	SetDB(session *gocql.Session) error
+	GetDB() (*gocql.Session, error)
 	Attach() error
-    Release() error
+	Release() error
 }
 
 type dbObject struct {
-    //db is a transient pointer to database connection
-	db *sql.DB
+	//session is a transient pointer to database connection
+	session *gocql.Session
 }
 
 //SetDB attachs a database connection to Card
-func (d *dbObject) SetDB(db *sql.DB) error {
-	if db == nil {
+func (d *dbObject) SetDB(session *gocql.Session) error {
+	if session == nil {
 		return errors.New("NullDBReferenceError: Message='The db parameter is required'")
 	}
-	d.db = db
+	d.session = session
 	return nil
 }
 
 //GetDB returns the Card attached connection
-func (d *dbObject) GetDB() (*sql.DB, error) {
-	if d.db == nil {
-		return nil, errors.New("NotAttachedError: Message='The db context is null'")
+func (d *dbObject) GetDB() (*gocql.Session, error) {
+	if d.session == nil {
+		return nil, errors.New("NotAttachedError: Message='The cassandra session is null'")
 	}
-	return d.db, nil
+	return d.session, nil
 }
 
 //Attach binds a new database connection to Card reference
@@ -56,141 +56,145 @@ func (d *dbObject) Release() error {
 
 //QuerySupport adds query capability to the struct
 type QuerySupport struct {
-    dbObject
+	dbObject
 }
 
 //QueryOne executes the single result query with the provided parameters and fetch the result
 func (q *QuerySupport) QueryOne(query string, fetchFunc func(Fetchable) error, params ...interface{}) error {
-    if strings.TrimSpace(query) == "" {
-        return errors.New("identity.QuerySupport.QueryError: Messages='NilReadQuery")
-    }
-    if params == nil || len(params) <= 0 {
-        return errors.New("identity.QuerySupport.QueryError: Messages='EmptyReadParameters")
-    }
-    if fetchFunc == nil {
-        return errors.New("identity.QuerySupport.QueryError: Messages='NilFetchFunction")
-    }
+	if strings.TrimSpace(query) == "" {
+		return errors.New("identity.QuerySupport.QueryError: Messages='NilReadQuery")
+	}
+	if params == nil || len(params) <= 0 {
+		return errors.New("identity.QuerySupport.QueryError: Messages='EmptyReadParameters")
+	}
+	if fetchFunc == nil {
+		return errors.New("identity.QuerySupport.QueryError: Messages='NilFetchFunction")
+	}
 	q.Attach()
 	defer q.Release()
-	row := q.db.QueryRow(query, params...)
-	return fetchFunc(row)
+	cqlQuery := q.session.Query(query, params...).Consistency(gocql.One)
+	return fetchFunc(cqlQuery)
 }
 
 //Query executes the query with the provided parameters and process the results
-func (q *QuerySupport) Query(query string, fetchFunc func(*sql.Rows) error, params ...interface{}) error {
-    if strings.TrimSpace(query) == "" {
-        return errors.New("identity.QuerySupport.QueryError: Messages='NilReadQuery")
-    }
-    if params == nil || len(params) <= 0 {
-        return errors.New("identity.QuerySupport.QueryError: Messages='EmptyReadParameters")
-    }
-    if fetchFunc == nil {
-        return errors.New("identity.QuerySupport.QueryError: Messages='NilFetchFunction")
-    }
+func (q *QuerySupport) Query(query string, iterFunc func(Iterable) error, params ...interface{}) error {
+	if strings.TrimSpace(query) == "" {
+		return errors.New("identity.QuerySupport.QueryError: Messages='NilReadQuery")
+	}
+	if params == nil || len(params) <= 0 {
+		return errors.New("identity.QuerySupport.QueryError: Messages='EmptyReadParameters")
+	}
+	if iterFunc == nil {
+		return errors.New("identity.QuerySupport.QueryError: Messages='NilIterFunction")
+	}
 	q.Attach()
 	defer q.Release()
-	rows, err := q.db.Query(query, params...)
-    if err != nil {
-        return err
-    }
-	return fetchFunc(rows)
+	cqlQuery := q.session.Query(query, params...)
+	return iterFunc(cqlQuery)
 }
 
 //InsertSupport adds insert capability to the struct
 type InsertSupport struct {
-    dbObject
+	dbObject
 }
 
 //Insert exeutes the insert command with the provided parameters
 func (i *InsertSupport) Insert(insert string, params ...interface{}) error {
-    if strings.TrimSpace(insert) == "" {
-        return errors.New("identity.InsertSupport.InsertError: Messages='NilInsertQuery")
-    }
-    if params == nil || len(params) <= 0 {
-        return errors.New("identity.InsertSupport.InsertError: Messages='EmptyInsertParameters")
-    }
+	if strings.TrimSpace(insert) == "" {
+		return errors.New("identity.InsertSupport.InsertError: Messages='NilInsertQuery")
+	}
+	if params == nil || len(params) <= 0 {
+		return errors.New("identity.InsertSupport.InsertError: Messages='EmptyInsertParameters")
+	}
 	i.Attach()
 	defer i.Release()
-    _, err := i.db.Exec(insert, params...)
-    if err != nil {
-        return err
-    }
-    log.Println("identity.InsertSupport.Inserted: Message='InsertedSuccessfully'")
-    return nil
+	err := i.session.Query(insert, params...).Exec()
+	if err != nil {
+		return err
+	}
+	log.Println("identity.InsertSupport.Inserted: Message='InsertedSuccessfully'")
+	return nil
 }
 
 //UpdateSupport adds insert capability to the struct
 type UpdateSupport struct {
-    dbObject
+	dbObject
 }
 
 //Update exeutes the update command with the provided parameters
 func (u *UpdateSupport) Update(update string, params ...interface{}) error {
-    if strings.TrimSpace(update) == "" {
-        return errors.New("identity.UpdateSupport.UpdateError: Messages='NilUpdateQuery")
-    }
-    if params == nil || len(params) <= 0 {
-        return errors.New("identity.UpdateSupport.UpdateError: Messages='EmptyUpdateParameters")
-    }
+	if strings.TrimSpace(update) == "" {
+		return errors.New("identity.UpdateSupport.UpdateError: Messages='NilUpdateQuery")
+	}
+	if params == nil || len(params) <= 0 {
+		return errors.New("identity.UpdateSupport.UpdateError: Messages='EmptyUpdateParameters")
+	}
 	u.Attach()
 	defer u.Release()
-    result, err := u.db.Exec(update, params...)
-    if err != nil {
-        return err
-    }
-    rowsUpdated, err := result.RowsAffected()
-    if err != nil {
-        log.Printf("identity.UpdateSupport.UpdateGetRowsAffectedEx: Message='%v'", err.Error())
-    } else {
-        if rowsUpdated != 1 {
-            log.Printf("identity.UpdateSupport.UpdateMultipleEx: Message='%d Records was update for Update=%v and Parameters=%v'", rowsUpdated, update, params)
-        }
-    }
-    log.Println("identity.UpdateSupport.Updated: Message='UpdatedSuccessfully'")
+	err := u.session.Query(update, params...).Exec()
+	if err != nil {
+		return err
+	}
+	//TODO: Verify how much records was update
+	// rowsUpdated, err := result.RowsAffected()
+	// if err != nil {
+	// 	log.Printf("identity.UpdateSupport.UpdateGetRowsAffectedEx: Message='%v'", err.Error())
+	// } else {
+	// 	if rowsUpdated != 1 {
+	// 		log.Printf("identity.UpdateSupport.UpdateMultipleEx: Message='%d Records was update for Update=%v and Parameters=%v'", rowsUpdated, update, params)
+	// 	}
+	// }
+	// log.Println("identity.UpdateSupport.Updated: Message='UpdatedSuccessfully'")
 	return nil
 }
 
 //DeleteSupport adds delete capability to the struct
 type DeleteSupport struct {
-    dbObject
+	dbObject
 }
 
 //Delete deletes the DECK record references to Deck
 func (d *DeleteSupport) Delete(delete string, params ...interface{}) error {
-    if strings.TrimSpace(delete) == "" {
-        return errors.New("identity.DeleteSupport.DeleteError: Messages='NilDeleteQuery")
-    }
-    if params == nil || len(params) <= 0 {
-        return errors.New("identity.DeleteSupport.DeleteError: Messages='EmptyDeleteParameters")
-    }
+	if strings.TrimSpace(delete) == "" {
+		return errors.New("identity.DeleteSupport.DeleteError: Messages='NilDeleteQuery")
+	}
+	if params == nil || len(params) <= 0 {
+		return errors.New("identity.DeleteSupport.DeleteError: Messages='EmptyDeleteParameters")
+	}
 	d.Attach()
 	defer d.Release()
-	result, err := d.db.Exec(delete, params...)
+	err := d.session.Query(delete, params...).Exec()
 	if err != nil {
 		return err
 	}
-	rowsDeleted, err := result.RowsAffected()
-	if err != nil {
-		log.Printf("identity.DeleteSupport.DeleteGetRowsAffectedEx: Message='%v'", err.Error())
-	} else {
-		if rowsDeleted != 1 {
-			log.Printf("identity.DeleteSupport.DeleteMultipleEx: Message='%d Records was delete for Delete=%v and Parameters=%v'", rowsDeleted, delete, params)
-		}
-	}
+	//TODO: Verify how much records was delete
+	// rowsDeleted, err := result.RowsAffected()
+	// if err != nil {
+	// 	log.Printf("identity.DeleteSupport.DeleteGetRowsAffectedEx: Message='%v'", err.Error())
+	// } else {
+	// 	if rowsDeleted != 1 {
+	// 		log.Printf("identity.DeleteSupport.DeleteMultipleEx: Message='%d Records was delete for Delete=%v and Parameters=%v'", rowsDeleted, delete, params)
+	// 	}
+	// }
 	return nil
 }
 
 //SQLSupport adds sql basic commands support fot the struct
 type SQLSupport struct {
-    QuerySupport
-    InsertSupport
-    UpdateSupport
-    DeleteSupport
+	QuerySupport
+	InsertSupport
+	UpdateSupport
+	DeleteSupport
 }
 
-//Fetchable supply the sql.Scan interface for a struct
+//Fetchable supply the gocql.Query.Scan interface for a struct
 type Fetchable interface {
 	Scan(dest ...interface{}) error
+}
+
+//Iterable supply the gocql.Query.Iter interface for a struct
+type Iterable interface {
+	Iter() *gocql.Iter
 }
 
 //Readable provides read actions for a struct

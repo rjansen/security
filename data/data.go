@@ -49,7 +49,7 @@ func (l *Login) CheckCredentials(password string) error {
 
 //Fetch fetchs the Row and sets the values into Login instance
 func (l *Login) Fetch(fetchable database.Fetchable) error {
-	return fetchable.Scan(&l.Username, &l.Name, &l.Password)
+	return fetchable.Scan(&l.Username, &l.Name, &l.Password, &l.Roles)
 }
 
 //FetchRoles fetchs all records in the provided role rows
@@ -69,11 +69,7 @@ func (l *Login) Read() error {
 	if strings.TrimSpace(l.Username) == "" {
 		return errors.New("data.Login.ReadError: Message='Login.Username is empty'")
 	}
-	err := l.QueryOne("select username, name, password from login where username = ?", l.Fetch, l.Username)
-	if err != nil {
-		return err
-	}
-	err = l.Query("select rolename from login_role where username = ?", l.FetchRoles, l.Username)
+	err := l.QueryOne("select username, name, password, roles from login where username = ? limit 1", l.Fetch, l.Username)
 	if err != nil {
 		return err
 	}
