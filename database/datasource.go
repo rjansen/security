@@ -3,13 +3,14 @@ package database
 import (
 	"errors"
 	"farm.e-pedion.com/repo/config"
+	"farm.e-pedion.com/repo/logger"
 	"fmt"
 	"github.com/gocql/gocql"
-	"log"
 )
 
 //pool is a variable to hold the Cassandra Pool
 var (
+	log  = logger.GetLogger("database")
 	pool *CassandraPool
 )
 
@@ -35,7 +36,7 @@ func Setup(config *config.CassandraConfig) error {
 		MaxCons:    10,
 		Datasource: datasource,
 	}
-	log.Printf("data.ConfigCassandraClient: CassandraPool=%+v", pool)
+	log.Infof("ConfigCassandraClient: CassandraPool=%+v", pool)
 	cluster := gocql.NewCluster(pool.Datasource.URL)
 	cluster.Keyspace = pool.Datasource.Keyspace
 	cluster.ProtoVersion = 4
@@ -45,7 +46,7 @@ func Setup(config *config.CassandraConfig) error {
 		return fmt.Errorf("CreateSessionError: Message=%v", err.Error())
 	}
 	pool.Session = session
-	log.Printf("data.Set: Config=%+v", config)
+	log.Infof("CassandraClientConfigured: Config=%+v", config)
 	return nil
 }
 
@@ -54,7 +55,7 @@ func Close() error {
 	if pool == nil || pool.Session == nil {
 		return errors.New("SetupMustCalled: Message='You must call Setup with a CassandraBConfig before get a Cassandrapool reference')")
 	}
-	log.Printf("data.CloseConnection: DBPool=%+v", pool)
+	log.Infof("CloseCassandraSession: CassandraPool=%+v", pool)
 	pool.Session.Close()
 	return nil
 }
@@ -75,7 +76,7 @@ func (c *CassandraPool) GetConnection() (*gocql.Session, error) {
 	if c.Session.Closed() {
 		return nil, errors.New("SessionIdClosed: Message='The Cassandra session is closed'")
 	}
-	log.Printf("data.GetConnection: CassandraPool=%+v", c)
+	log.Debugf("GetSession: CassandraPool=%+v", c)
 	return c.Session, nil
 }
 

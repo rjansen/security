@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gocql/gocql"
-	"log"
 	"strings"
 )
 
@@ -112,7 +111,7 @@ func (i *InsertSupport) Insert(insert string, params ...interface{}) error {
 	if err != nil {
 		return err
 	}
-	log.Println("identity.InsertSupport.Inserted: Message='InsertedSuccessfully'")
+	log.Debug("InsertSupport.Inserted: Message='InsertedSuccessfully'")
 	return nil
 }
 

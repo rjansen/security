@@ -2,17 +2,18 @@ package proxy
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"regexp"
 
 	"farm.e-pedion.com/repo/config"
+	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/security/handler"
 )
 
 var (
+	log = logger.GetLogger("proxy")
 	//Create a config way to strip paths while proxy request
 	pathRegex, _ = regexp.Compile("\\/web|\\/api")
 )
@@ -41,11 +42,11 @@ func (a *ApiReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//Creates a JWT to proxy the request
 	privateSession := a.GetSession().PrivateSession
 	if err := privateSession.Serialize(); err != nil {
-        return
-    }
+		return
+	}
 	//r.SetBasicAuth(a.session.Username, a.session.ID)
 	r.Header.Set("Authorization", fmt.Sprintf("%v: %v", a.SecurityConfig.CookieName, string(privateSession.Token)))
-	log.Printf("HeaderAuthorizationFoward[%v=%v Requested=%v Foward=%v%v]", a.SecurityConfig.CookieName, privateSession.ID, requestedPath, a.ProxyURL, r.URL.Path)
+	log.Debugf("HeaderAuthorizationFoward[%v=%v Requested=%v Foward=%v%v]", a.SecurityConfig.CookieName, privateSession.ID, requestedPath, a.ProxyURL, r.URL.Path)
 	a.reverseProxy.ServeHTTP(w, r)
 }
 
@@ -83,10 +84,10 @@ func (a *WebReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	//http.SetCookie(w, cookie)
 	r.AddCookie(cookie)
-    //r.Header.Set("Authorization", fmt.Sprintf("%v: %v", a.SecurityConfig.CookieName, privateSession.Token))
+	//r.Header.Set("Authorization", fmt.Sprintf("%v: %v", a.SecurityConfig.CookieName, privateSession.Token))
 	w.Header().Set(fmt.Sprintf("X-%v", a.SecurityConfig.CookieName), string(privateSession.Token))
 
 	//Creates a JWT to proxy the request
-	log.Printf("CookieAuthFoward[%v=%v Requested=%v Foward=%v%v]", a.SecurityConfig.CookieName, privateSession.ID, requestedPath, a.ProxyURL, r.URL.Path)
+	log.Debugf("CookieAuthFoward[%v=%v Requested=%v Foward=%v%v]", a.SecurityConfig.CookieName, privateSession.ID, requestedPath, a.ProxyURL, r.URL.Path)
 	a.reverseProxy.ServeHTTP(w, r)
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"time"
 
@@ -19,21 +18,21 @@ import (
 func Authenticate(username string, password string) (*PublicSession, error) {
 	login := &Login{Username: username}
 	if err := login.Read(); err != nil {
-		log.Printf("data.Authenticate.ReadLoginError: Username[%v] Error[%v]", username, err)
+		log.Errorf("Authenticate.ReadLoginError: Username[%v] Error[%v]", username, err)
 		return nil, err
 	}
 	if err := login.CheckCredentials(password); err != nil {
-		log.Printf("data.Authenticate.CheckCredentialsError: Username[%v] Error[%v]", username, err)
+		log.Errorf("Authenticate.CheckCredentialsError: Username[%v] Error[%v]", username, err)
 		return nil, err
 	}
 	publicSessionID, err := util.NewUUID()
 	if err != nil {
-		log.Printf("data.Authenticate.NewPublicSessionIDError: Username[%v] Error[%v]", username, err)
+		log.Errorf("Authenticate.NewPublicSessionIDError: Username[%v] Error[%v]", username, err)
 		return nil, err
 	}
 	sessionID, err := util.NewUUID()
 	if err != nil {
-		log.Printf("data.Authenticate.NewSessionIDError: Username[%v] Error[%v]", username, err)
+		log.Errorf("Authenticate.NewSessionIDError: Username[%v] Error[%v]", username, err)
 		return nil, err
 	}
 	expires := time.Now().Add(day)
@@ -57,14 +56,14 @@ func Authenticate(username string, password string) (*PublicSession, error) {
 		}
 	}
 	if err := publicSession.Serialize(); err != nil {
-		log.Printf("data.Authenticate.JWTSerializeError: Username[%v] Error[%v]", username, err)
+		log.Errorf("data.Authenticate.JWTSerializeError: Username[%v] Error[%v]", username, err)
 		return nil, err
 	}
 	if err := publicSession.Set(); err != nil {
-		log.Printf("identity.Authenticate.SetSessionError: Username[%v] Error[%v]", username, err)
+		log.Errorf("Authenticate.SetSessionError: Username[%v] Error[%v]", username, err)
 		return nil, err
 	}
-	log.Printf("data.Authenticate.NewSession: Username[%v] PublicID[%v] PrivateID[%v] Error[%v]", username, publicSession.ID, publicSession.PrivateSession.ID, err)
+	log.Infof("Authenticate.NewSession: Username[%v] PublicID[%v] PrivateID[%v] Error[%v]", username, publicSession.ID, publicSession.PrivateSession.ID, err)
 	return publicSession, nil
 }
 
@@ -84,7 +83,7 @@ func loginCallback(cookieName string, loginCallbackURL string, publicSession *Pu
 		return err
 	}
 	request.Header.Set("Authorization", fmt.Sprintf("%v: %v", cookieName, string(publicSession.PrivateSession.Token)))
-	log.Printf("data.LoginCallback.Authorization: CallbackURL=%v %v=%v Username=%v PrivateSession=%+v", loginCallbackURL, cookieName, string(publicSession.Token), publicSession.Username, publicSession.PrivateSession)
+	log.Debugf("LoginCallback.Authorization: CallbackURL=%v %v=%v Username=%v PrivateSession=%+v", loginCallbackURL, cookieName, string(publicSession.Token), publicSession.Username, publicSession.PrivateSession)
 	response, err := client.Do(request)
 	if err != nil {
 		return err
@@ -97,13 +96,13 @@ func loginCallback(cookieName string, loginCallbackURL string, publicSession *Pu
 	if err != nil {
 		return err
 	}
-	log.Printf("LoginCallbackResponseBody: Body=%+v", string(bodyBytes))
+	log.Debugf("LoginCallbackResponseBody: Body=%+v", string(bodyBytes))
 	loginData := make(map[string]interface{})
 	if err := json.Unmarshal(bodyBytes, &loginData); err != nil {
 		return err
 	}
 	//delete(loginData, "username")
-	log.Printf("LoginCallbackData: Data=%+v", loginData)
+	log.Infof("LoginCallbackData: Data=%+v", loginData)
 	publicSession.PrivateSession.Data = loginData
 	return nil
 }
@@ -132,7 +131,7 @@ func ReadSession(token string) (*PublicSession, error) {
 		Token:    []byte(token),
 		Username: jwt.Claims().Get("username").(string),
 	}
-	log.Printf("data.ReadSession: PublicSession[%+v]", publicSession.ID)
+	log.Debugf("ReadSession: PublicSession[%+v]", publicSession.ID)
 	if err := publicSession.Get(); err != nil {
 		return nil, err
 	}

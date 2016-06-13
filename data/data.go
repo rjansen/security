@@ -1,17 +1,16 @@
 package data
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"strings"
 	"time"
 
 	"farm.e-pedion.com/repo/cache"
 	"farm.e-pedion.com/repo/config"
+	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/security/database"
 	"farm.e-pedion.com/repo/security/identity"
 	"farm.e-pedion.com/repo/security/util"
@@ -24,6 +23,7 @@ const (
 )
 
 var (
+	log = logger.GetLogger("data")
 	//memoryCache    = make(map[string]*identity.Session)
 	jwtKey         = []byte("321ewqdsa#@!")
 	jwtCrypto      = crypto.SigningMethodHS512
@@ -50,18 +50,6 @@ func (l *Login) CheckCredentials(password string) error {
 //Fetch fetchs the Row and sets the values into Login instance
 func (l *Login) Fetch(fetchable database.Fetchable) error {
 	return fetchable.Scan(&l.Username, &l.Name, &l.Password, &l.Roles)
-}
-
-//FetchRoles fetchs all records in the provided role rows
-func (l *Login) FetchRoles(roleRows *sql.Rows) error {
-	var tempRoles []string
-	for roleRows.Next() {
-		var nextRole *string
-		roleRows.Scan(&nextRole)
-		tempRoles = append(tempRoles, *nextRole)
-	}
-	l.Roles = tempRoles
-	return nil
 }
 
 //Read gets the entity representation from the database.
@@ -93,17 +81,9 @@ func (l *Login) Persist() error {
 	}
 	l.Password = string(hashedPassword)
 
-	err = l.Insert("insert into login (username, name, password) values (?, ?, ?)", l.Username, l.Name, l.Password)
+	err = l.Insert("insert into login (username, name, password, roles) values (?, ?, ?)", l.Username, l.Name, l.Password, l.Roles)
 	if err != nil {
 		return err
-	}
-	insertRole := "insert into login_role (username, rolename) values (?, ?)"
-	for _, role := range l.Roles {
-		insertRoleErr := l.Insert(insertRole, l.Username, role)
-		if insertRoleErr != nil {
-			log.Printf("data.Login.PersistError.InsertRoleEx: Message='%v'", insertRoleErr.Error())
-			return insertRoleErr
-		}
 	}
 	return nil
 }
@@ -112,10 +92,6 @@ func (l *Login) Persist() error {
 func (l *Login) Remove() error {
 	if strings.TrimSpace(l.Username) == "" {
 		return errors.New("data.Login.RemoveError: Message='Login.Username is empty'")
-	}
-	err := l.Delete("delete from login_role where username = ?", l.Username)
-	if err != nil {
-		return err
 	}
 	return l.Delete("delete from login where username = ?", l.Username)
 }
@@ -147,7 +123,7 @@ func (s *PublicSession) String() string {
 //Set sets the session to cache
 func (s *PublicSession) Set() error {
 	ttl := int(s.PrivateSession.TTL / time.Second)
-	log.Printf("data.StoreSession: ID=%v TTL=%v Session=%+v", s.ID, ttl, s.PrivateSession)
+	log.Debugf("data.StoreSession: ID=%v TTL=%v Session=%+v", s.ID, ttl, s.PrivateSession)
 	sessionBytes, err := json.Marshal(s.PrivateSession)
 	if err != nil {
 		return fmt.Errorf("data.MarshalSessionError: Message='ImpossibleToMarshalSession: ID=%v Cause=%v'", s.ID, err.Error())
@@ -156,7 +132,7 @@ func (s *PublicSession) Set() error {
 	if err != nil {
 		return fmt.Errorf("data.SetSessionError: Message='ImpossibleToCacheSession: ID=%v Cause=%v'", s.ID, err.Error())
 	}
-	log.Printf("data.SessionStored: ID=%v TTL=%v Value=%+v", s.ID, ttl, string(sessionBytes))
+	log.Infof("SessionStored: ID=%v TTL=%v Value=%+v", s.ID, ttl, string(sessionBytes))
 	return nil
 }
 
@@ -165,12 +141,12 @@ func (s *PublicSession) Get() error {
 	if strings.TrimSpace(s.ID) == "" {
 		return errors.New("data.PublicSession.Get: Message='PublicSession.ID is empty'")
 	}
-	log.Printf("data.PublicSession.LoadSessionFromCache: ID=%v", s.ID)
+	log.Debugf("PublicSession.LoadSessionFromCache: ID=%v", s.ID)
 	sessionBytes, err := cacheClient.Get(s.ID)
 	if err != nil {
 		return fmt.Errorf("data.GetSessionError: Message='ImpossibleToGetCachedSession: ID=%v Cause=%v'", s.ID, err.Error())
 	}
-	log.Printf("data.PublicSession.SessionLoadedFromCache: ID=%v Value=%+v", s.ID, string(sessionBytes))
+	log.Debugf("PublicSession.SessionLoadedFromCache: ID=%v Value=%+v", s.ID, string(sessionBytes))
 	privateSession := &identity.Session{}
 	err = json.Unmarshal(sessionBytes, &privateSession)
 	if err != nil {

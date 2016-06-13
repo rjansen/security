@@ -16,7 +16,11 @@ TEST_PKGS :=
 
 deps:
 	go get github.com/go-sql-driver/mysql
-	go get github.com/bradfitz/gomemcache/memcache 
+	go get github.com/bradfitz/gomemcache/memcache
+	go get github.com/vharitonsky/iniflags
+	go get github.com/op/go-logging
+	go get github.com/gocql/gocql
+	go get github.com/SermoDigital/jose
 
 install:
 	go build farm.e-pedion.com/repo/security
@@ -45,7 +49,17 @@ test:
 local: 
 	@echo "Set enviroment to local"
 	$(eval TARGET_ENV = "local")
-    
+
+.PHONY: dev
+dev: 
+	@echo "Set enviroment to dev"
+	$(eval TARGET_ENV = "dev")
+
+.PHONY: prod
+prod: 
+	@echo "Set enviroment to prod"
+	$(eval TARGET_ENV = "prod")
+
 .PHONY: run
 run: install
 	./security --bind_address=:8000

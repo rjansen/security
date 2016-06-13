@@ -1,7 +1,6 @@
 package identity
 
 import (
-	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -10,7 +9,7 @@ import (
 )
 
 type AuthenticatableHandler interface {
-    GetSession() *Session
+	GetSession() *Session
 	SetSession(session *Session)
 	ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
@@ -43,7 +42,7 @@ type CookieAuthenticatedHandler struct {
 
 func (handler *CookieAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	serveUnauthorizedResult := func() {
-		log.Println("identity.CookieAuthenticatedHandler.ServeHTTP: UnauthorizedRequest[Message[401 StatusUnauthorized]]")
+		log.Infof("CookieAuthenticatedHandler.ServeHTTP: UnauthorizedRequest[Message[401 StatusUnauthorized]]")
 		apiAcceptRegex := "json|plain"
 		accpet := r.Header.Get("Accept")
 		if matches, _ := regexp.MatchString(apiAcceptRegex, accpet); matches {
@@ -58,12 +57,12 @@ func (handler *CookieAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *h
 	//}
 	cookie, err := r.Cookie(handler.SecurityConfig.CookieName)
 	if err == nil {
-		log.Printf("identity.CookieAuthenticatedHandler.ServeHTTP: Cookie[%v]", cookie.String())
+		log.Debugf("CookieAuthenticatedHandler.ServeHTTP: Cookie[%v]", cookie.String())
 		jwtSessionToken := cookie.Value
-		log.Printf("identity.CookieAuthenticatedHandler.ServeHTTP: SessionToken[%v]", jwtSessionToken)
+		log.Infof("CookieAuthenticatedHandler.ServeHTTP: SessionToken[%v]", jwtSessionToken)
 		session, err := ReadSession(jwtSessionToken)
 		if err != nil {
-			log.Printf("identity.CookieAuthenticatedHandler.FindSessionError: Error[%v]", err)
+			log.Errorf("identity.CookieAuthenticatedHandler.FindSessionError: Error[%v]", err)
 			serveUnauthorizedResult()
 		} else {
 			handler.AuthenticatableHandler.SetSession(session)
@@ -86,7 +85,7 @@ type HeaderAuthenticatedHandler struct {
 
 func (handler *HeaderAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	serveUnauthorizedResult := func(w http.ResponseWriter, r *http.Request) {
-		log.Println("identity.UnauthorizedRequest: Message[401 StatusUnauthorized]")
+		log.Infof("UnauthorizedRequest: Message[401 StatusUnauthorized]")
 		w.WriteHeader(http.StatusUnauthorized)
 	}
 	//serveForbiddendResult := func(w http.ResponseWriter, r *http.Request) {
@@ -94,14 +93,14 @@ func (handler *HeaderAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *h
 	//    w.WriteHeader(http.StatusForbidden)
 	//}
 	authorization := r.Header.Get("Authorization")
-	log.Printf("identity.HeaderAuthenticatedHandler.ServeHTTP: Authorization[%v]", authorization)
+	log.Debugf("HeaderAuthenticatedHandler.ServeHTTP: Authorization[%v]", authorization)
 	authorizationFields := strings.Fields(authorization)
 	if len(authorizationFields) > 1 {
 		jwtSessionToken := authorizationFields[1]
-		log.Printf("identity.HeaderAuthenticatedHandler.ServeHTTP: SessionToken[%v]", jwtSessionToken)
+		log.Infof("HeaderAuthenticatedHandler.ServeHTTP: SessionToken[%v]", jwtSessionToken)
 		session, err := ReadSession(jwtSessionToken)
 		if err != nil {
-			log.Printf("identity.AuthenticatedHandler.FindSessionError: Error[%v]", err)
+			log.Errorf("identity.AuthenticatedHandler.FindSessionError: Error[%v]", err)
 			serveUnauthorizedResult(w, r)
 		} else {
 			handler.AuthenticatableHandler.SetSession(session)

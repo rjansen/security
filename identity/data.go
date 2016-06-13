@@ -3,17 +3,18 @@ package identity
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
-	"log"
 	"time"
-    "fmt"
 
+	"farm.e-pedion.com/repo/logger"
 	"github.com/SermoDigital/jose/crypto"
 	"github.com/SermoDigital/jose/jws"
 	"github.com/SermoDigital/jose/jwt"
 )
 
 var (
+	log       = logger.GetLogger("identity")
 	jwtKey    = []byte("321ewqdsa#@!")
 	jwtCrypto = crypto.SigningMethodHS512
 )
@@ -23,7 +24,7 @@ func NewSession(jwt jwt.JWT) (*Session, error) {
 	if jwt == nil {
 		return nil, errors.New("JWT is nil")
 	}
-	log.Printf("JWTSessionClaims: Claims=%+v", jwt.Claims())
+	log.Debugf("JWTSessionClaims: Claims=%+v", jwt.Claims())
 	if !jwt.Claims().Has("iss") || !jwt.Claims().Has("id") || !jwt.Claims().Has("username") || !jwt.Claims().Has("roles") {
 		return nil, errors.New("Some required parameter is missing: iss, id, username, roles")
 	}
@@ -77,9 +78,8 @@ type Session struct {
 }
 
 func (s *Session) String() string {
-    return fmt.Sprintf("Session[Issuer=%v ID=%v Username=%v Roles=%v]", s.Issuer, s.ID, s.Username, s.Roles)
+	return fmt.Sprintf("Session[Issuer=%v ID=%v Username=%v Roles=%v]", s.Issuer, s.ID, s.Username, s.Roles)
 }
-
 
 //Marshal creates a plain JSON representation of the Session
 func (s *Session) Marshal() ([]byte, error) {

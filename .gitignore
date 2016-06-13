@@ -1,6 +1,7 @@
 *.ecf
 *.ini
 *.conf
+*.log
 tags
 main
 security
