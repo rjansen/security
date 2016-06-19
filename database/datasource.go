@@ -38,8 +38,12 @@ func Setup(config *config.CassandraConfig) error {
 	}
 	log.Infof("ConfigCassandraClient: CassandraPool=%+v", pool)
 	cluster := gocql.NewCluster(pool.Datasource.URL)
-	cluster.Keyspace = pool.Datasource.Keyspace
 	cluster.ProtoVersion = 4
+	cluster.Keyspace = pool.Datasource.Keyspace
+	cluster.Authenticator = gocql.PasswordAuthenticator{
+		Username: pool.Datasource.Username,
+		Password: pool.Datasource.Password,
+	}
 
 	session, err := cluster.CreateSession()
 	if err != nil {
