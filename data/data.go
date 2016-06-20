@@ -32,6 +32,36 @@ var (
 	cacheClient    = cache.NewClient()
 )
 
+//Authenticator is the data struct of the security authenticato configuration
+type Authenticator struct {
+	util.JSONObject
+	Name     string `json:"name"`
+	Label    string `json:"label"`
+	Title    string `json:"label"`
+	Keywords string `json:"keywords"`
+	Author   string `json:"author"`
+}
+
+//LoginPageData holds login page beahavior and appearance
+type LoginPageData struct {
+	Authenticator `json:"authenticator"`
+	//Error, Warning, Info
+	MessageType   string        `json:"messageType"`
+	Message       string        `json:"message"`
+	LoginUserData LoginUserData `json:"userData"`
+}
+
+//LoginUserData holds login form behavior and appearance
+type LoginUserData struct {
+	ProductLabel      string `json:"productLabel"`
+	RemmenberUser     bool   `json:"remmenberUser"`
+	Username          string `json:"username"`
+	ImageURL          string `json:"imageURL"`
+	FormURI           string `json:"formURI"`
+	FormUsernameField string `json:"formUsernameField"`
+	FormPasswordField string `json:"formPasswordField"`
+}
+
 //Login is the data struct of the user identity
 type Login struct {
 	util.JSONObject

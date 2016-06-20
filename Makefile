@@ -21,8 +21,12 @@ deps:
 	go get github.com/op/go-logging
 	go get github.com/gocql/gocql
 	go get github.com/SermoDigital/jose
+	go get github.com/valyala/fasthttp
+	go get github.com/valyala/quicktemplate
+	go get github.com/valyala/quicktemplate/qtc
 
 install:
+	qtc 
 	go build farm.e-pedion.com/repo/security
 
 pkg_data:

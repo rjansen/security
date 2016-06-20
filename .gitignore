@@ -2,6 +2,7 @@
 *.ini
 *.conf
 *.log
+*.qtpl.go
 tags
 main
 security

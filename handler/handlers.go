@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"net/http"
 	"regexp"
 	"strings"
@@ -12,6 +11,8 @@ import (
 	"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/security/data"
+
+	"farm.e-pedion.com/repo/security/asset"
 )
 
 var (
@@ -121,22 +122,6 @@ func (handler *SessionHeaderHandler) ServeHTTP(w http.ResponseWriter, r *http.Re
 	}
 }
 
-type LoginPageData struct {
-	//Error, Warning, Info
-	MessageType   string
-	Message       string
-	LoginUserData LoginUserData
-}
-
-type LoginUserData struct {
-	RemmenberUser     bool
-	Username          string
-	ImageURL          string
-	FormURI           string
-	FormUsernameField string
-	FormPasswordField string
-}
-
 func NewLoginHandler() *LoginHandler {
 	return &LoginHandler{
 		ProxyConfig:    config.BindProxyConfiguration(),
@@ -149,21 +134,21 @@ type LoginHandler struct {
 	*config.SecurityConfig
 }
 
-func (l *LoginHandler) renderLoginPage(w http.ResponseWriter, parameters *LoginPageData) {
-	t, err := template.ParseFiles("html/login.html")
-	if err != nil {
-		log.Errorf("LoginHandler.PageParserError: Page[html/login.html] Params[%v] Error[%v]", parameters, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+func (l *LoginHandler) renderLoginPage(w http.ResponseWriter, parameters data.LoginPageData) {
+	asset.WriteBody(w, parameters)
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
 	} else {
-		t.Execute(w, parameters)
+		log.Warningf("ResponseWriterIsNotFlusher: ")
 	}
+	asset.WriteFoorter(w, parameters)
 }
 
 func (l *LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("LoginHandler.ServeHTTP: Method[%v] URL[%v] HOST[%v]", r.Method, r.URL, r.Host)
 	if r.Method == "GET" {
-		parameters := &LoginPageData{
-			LoginUserData: LoginUserData{
+		parameters := data.LoginPageData{
+			LoginUserData: data.LoginUserData{
 				RemmenberUser:     true,
 				FormURI:           l.ProxyConfig.FormURI,
 				FormUsernameField: l.ProxyConfig.FormUsernameField,
@@ -188,10 +173,10 @@ func (l *LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				if err == nil {
 					http.Redirect(w, r, l.ProxyConfig.RedirectURL, http.StatusFound)
 				} else {
-					parameters := &LoginPageData{
+					parameters := data.LoginPageData{
 						MessageType: "Error",
 						Message:     "Invalid credentials",
-						LoginUserData: LoginUserData{
+						LoginUserData: data.LoginUserData{
 							RemmenberUser:     true,
 							FormURI:           l.ProxyConfig.FormURI,
 							FormUsernameField: l.ProxyConfig.FormUsernameField,
