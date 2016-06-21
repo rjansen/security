@@ -15,15 +15,15 @@ TARGET_ENV :=
 TEST_PKGS := 
 
 deps:
-	go get github.com/go-sql-driver/mysql
-	go get github.com/bradfitz/gomemcache/memcache
+#	go get github.com/go-sql-driver/mysql
 	go get github.com/vharitonsky/iniflags
 	go get github.com/op/go-logging
-	go get github.com/gocql/gocql
-	go get github.com/SermoDigital/jose
 	go get github.com/valyala/fasthttp
 	go get github.com/valyala/quicktemplate
 	go get github.com/valyala/quicktemplate/qtc
+	go get github.com/SermoDigital/jose
+	go get github.com/bradfitz/gomemcache/memcache
+	go get github.com/gocql/gocql
 
 install:
 	qtc 

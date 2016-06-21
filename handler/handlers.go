@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"farm.e-pedion.com/repo/security/data"
 
 	"farm.e-pedion.com/repo/security/asset"
+	"github.com/valyala/fasthttp"
 )
 
 var (
@@ -122,31 +124,28 @@ func (handler *SessionHeaderHandler) ServeHTTP(w http.ResponseWriter, r *http.Re
 	}
 }
 
-func NewLoginHandler() *LoginHandler {
-	return &LoginHandler{
+func NewAuthHandler() *AuthHandler {
+	return &AuthHandler{
 		ProxyConfig:    config.BindProxyConfiguration(),
 		SecurityConfig: config.BindSecurityConfiguration(),
 	}
 }
 
-type LoginHandler struct {
+type AuthHandler struct {
 	*config.ProxyConfig
 	*config.SecurityConfig
 }
 
-func (l *LoginHandler) renderLoginPage(w http.ResponseWriter, parameters data.LoginPageData) {
-	asset.WriteBody(w, parameters)
-	if flusher, ok := w.(http.Flusher); ok {
-		flusher.Flush()
-	} else {
-		log.Warningf("ResponseWriterIsNotFlusher: ")
-	}
-	asset.WriteFoorter(w, parameters)
+func (l *AuthHandler) renderLoginPage(ctx *fasthttp.RequestCtx, parameters data.LoginPageData) {
+	ctx.SetContentType("text/html; charset=utf-8")
+	asset.WriteBody(ctx, parameters)
+	asset.WriteFoorter(ctx, parameters)
 }
 
-func (l *LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Debugf("LoginHandler.ServeHTTP: Method[%v] URL[%v] HOST[%v]", r.Method, r.URL, r.Host)
-	if r.Method == "GET" {
+func (l *AuthHandler) Login(ctx *fasthttp.RequestCtx) {
+	log.Debugf("LoginHandler.ServeHTTP: Method[%v] URL[%v] HOST[%v]", string(ctx.Method()), ctx.URI(), string(ctx.Host()))
+	method := ctx.Method()
+	if bytes.Equal(method, []byte("GET")) {
 		parameters := data.LoginPageData{
 			LoginUserData: data.LoginUserData{
 				RemmenberUser:     true,
@@ -155,23 +154,25 @@ func (l *LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				FormPasswordField: l.ProxyConfig.FormPasswordField,
 			},
 		}
-		l.renderLoginPage(w, parameters)
+		l.renderLoginPage(ctx, parameters)
 		//log.Printf("LoginHandler.GetAuthPage: Method[GET] URL[%v] HOST[%v] Headers[%q]", r.URL, r.Host, r.Header)
-		log.Debugf("LoginHandler.GetAuthPage: Method[GET] URL[%v] HOST[%v]", r.URL, r.Host)
-	} else if r.Method == "POST" {
+		log.Debugf("LoginHandler.GetAuthPage: Method[GET] URL[%v] HOST[%v]", ctx.URI(), string(ctx.Host()))
+	} else if bytes.Equal(method, []byte("POST")) {
 		resultContentNegotiator := func(err error) {
 			apiAcceptRegex := "json|plain"
-			accept := r.Header.Get("Accept")
+			accept := string(ctx.Request.Header.Peek("Accept"))
 			log.Infof("LoginHandler.ContentNegotiator: ApiAcceptRegex[%v] Accept[%v]", apiAcceptRegex, accept)
 			if matches, _ := regexp.MatchString(apiAcceptRegex, accept); matches {
 				if err == nil {
-					w.WriteHeader(http.StatusOK)
+					ctx.SetStatusCode(fasthttp.StatusOK)
+					//w.WriteHeader(http.StatusOK)
 				} else {
-					w.WriteHeader(http.StatusUnauthorized)
+					ctx.SetStatusCode(fasthttp.StatusUnauthorized)
+					//w.WriteHeader(http.StatusUnauthorized)
 				}
 			} else {
 				if err == nil {
-					http.Redirect(w, r, l.ProxyConfig.RedirectURL, http.StatusFound)
+					ctx.Redirect(l.ProxyConfig.RedirectURL, fasthttp.StatusFound)
 				} else {
 					parameters := data.LoginPageData{
 						MessageType: "Error",
@@ -183,15 +184,15 @@ func (l *LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							FormPasswordField: l.ProxyConfig.FormPasswordField,
 						},
 					}
-					l.renderLoginPage(w, parameters)
+					l.renderLoginPage(ctx, parameters)
 				}
 			}
 		}
 		//log.Printf("LoginHandler.CreatingSession: Method[POST] URL[%v] HOST[%v] Headers[%q]", r.URL, r.Host, r.Header)
-		log.Infof("LoginHandler.CreatingSession: Method[POST] URL[%v] HOST[%v]", r.URL, r.Host)
+		log.Infof("LoginHandler.CreatingSession: Method[POST] URL[%v] HOST[%v]", ctx.URI(), string(ctx.Host()))
 		//Dummy credentials
-		username := r.FormValue(l.ProxyConfig.FormUsernameField)
-		password := r.FormValue(l.ProxyConfig.FormPasswordField)
+		username := string(ctx.FormValue(l.ProxyConfig.FormUsernameField))
+		password := string(ctx.FormValue(l.ProxyConfig.FormPasswordField))
 		session, err := data.Authenticate(username, password)
 		if err != nil {
 			log.Errorf("LoginHandler.AuthenticationFailed: Username[%v] Password[%v] Error[%v]", username, password, err)
@@ -199,29 +200,39 @@ func (l *LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Debugf("LoginHandler.SessionExpires: SessionId[%v] Now[%v] Expires[%v]", session.ID, time.Now(), session.PrivateSession.Expires)
-		cookie := &http.Cookie{
-			Name:    l.SecurityConfig.CookieName,
-			Value:   string(session.Token),
-			Domain:  l.SecurityConfig.CookieDomain,
-			Path:    l.SecurityConfig.CookiePath,
-			Expires: session.PrivateSession.Expires,
-		}
-		http.SetCookie(w, cookie)
-		r.AddCookie(cookie)
-		w.Header().Set(fmt.Sprintf("X-%v", l.SecurityConfig.CookieName), string(session.Token))
-		log.Infof("LoginHandler.CreatedSession: SessionId[%v] Cookie[%v] URL[%v]", session.ID, cookie, r.URL)
+		cookie := &fasthttp.Cookie{}
+		cookie.SetKey(l.SecurityConfig.CookieName)
+		//Name:    l.SecurityConfig.CookieName,
+		cookie.SetValueBytes(session.Token)
+		//Value:   string(session.Token),
+		cookie.SetDomain(l.SecurityConfig.CookieDomain)
+		//Domain:  l.SecurityConfig.CookieDomain,
+		cookie.SetPath(l.SecurityConfig.CookiePath)
+		//Path:    l.SecurityConfig.CookiePath,
+		cookie.SetExpire(session.PrivateSession.Expires)
+		//Expires: session.PrivateSession.Expires,
+
+		ctx.Response.Header.SetCookie(cookie)
+		//r.AddCookie(cookie)
+		ctx.Response.Header.Set(fmt.Sprintf("X-%v", l.SecurityConfig.CookieName), string(session.Token))
+		//w.Header().Set(fmt.Sprintf("X-%v", l.SecurityConfig.CookieName), string(session.Token))
+		log.Infof("LoginHandler.CreatedSession: SessionId[%v] Cookie[%v] URL[%v]", session.ID, cookie, ctx.URI())
 		resultContentNegotiator(nil)
 	}
 }
 
-func NewLogoutHandler() http.Handler {
-	return &SessionCookieHandler{
-		AuthenticatableHandler: &LogoutHandler{
-			SecurityConfig: config.BindSecurityConfiguration(),
-			ProxyConfig:    config.BindProxyConfiguration(),
-		},
-		ProxyConfig:    config.BindProxyConfiguration(),
+func NewLogoutHandler() *LogoutHandler {
+	// return &SessionCookieHandler{
+	// 	AuthenticatableHandler: &LogoutHandler{
+	// 		SecurityConfig: config.BindSecurityConfiguration(),
+	// 		ProxyConfig:    config.BindProxyConfiguration(),
+	// 	},
+	// 	ProxyConfig:    config.BindProxyConfiguration(),
+	// 	SecurityConfig: config.BindSecurityConfiguration(),
+	// }
+	return &LogoutHandler{
 		SecurityConfig: config.BindSecurityConfiguration(),
+		ProxyConfig:    config.BindProxyConfiguration(),
 	}
 }
 
@@ -229,6 +240,30 @@ type LogoutHandler struct {
 	AuthenticatedHandler
 	*config.SecurityConfig
 	*config.ProxyConfig
+}
+
+func (l *LogoutHandler) Logout(ctx *fasthttp.RequestCtx) {
+	//privateSession := l.GetSession().PrivateSession
+	//log.Infof("LogoutHandler.SessionFound: %v=%v", privateSession.ID, privateSession.Username)
+	nowTime := time.Now()
+	expiresTime := nowTime.AddDate(0, 0, -1)
+	//log.Infof("LogoutHandler.CookieExpires: Session[%v=%v] Now[%v] Expires[%v]", privateSession.ID, privateSession.Username, nowTime, expiresTime)
+	log.Infof("LogoutHandler.CookieExpires: Now[%v] Expires[%v]", nowTime, expiresTime)
+	logoutCookie := &fasthttp.Cookie{}
+	logoutCookie.SetKey(l.SecurityConfig.CookieName)
+	logoutCookie.SetDomain(l.SecurityConfig.CookieDomain)
+	logoutCookie.SetPath(l.SecurityConfig.CookiePath)
+	logoutCookie.SetExpire(expiresTime)
+	ctx.Response.Header.SetCookie(logoutCookie)
+
+	accept := string(ctx.Request.Header.Peek("Accept"))
+	if matches, _ := regexp.MatchString("json|plain", accept); matches {
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		//w.WriteHeader(http.StatusOK)
+	} else {
+		ctx.Redirect(l.ProxyConfig.RedirectURL, fasthttp.StatusFound)
+		//http.Redirect(w, r, l.ProxyConfig.RedirectURL, http.StatusFound)
+	}
 }
 
 func (l *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
