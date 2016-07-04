@@ -66,16 +66,21 @@ func main() {
 
 	authHandler := handler.NewAuthHandler()
 	logoutHandler := handler.NewLogoutHandler()
-	//identityHandler := handler.NewIdentityHandler()
+	getSessionHandler := handler.NewGetSessionHandler()
+	validateSessionHandler := handler.NewValidateSessionHandler()
 	//securityProxy := proxy.NewSecurityProxy(apiRemote, webRemote)
 	httpHandler := func(ctx *fasthttp.RequestCtx) {
 		path := ctx.Path()
 		//switch string(ctx.Path()) {
 		switch {
-		case bytes.HasPrefix(path, []byte("/auth/login/")):
-			authHandler.Login(ctx)
-		case bytes.HasPrefix(path, []byte("/auth/logout/")):
-			logoutHandler.Logout(ctx)
+		case bytes.HasPrefix(path, []byte("/auth/login")):
+			authHandler.HandleRequest(ctx)
+		case bytes.HasPrefix(path, []byte("/auth/logout")):
+			logoutHandler.HandleRequest(ctx)
+		case bytes.HasPrefix(path, []byte("/identity/session")):
+			getSessionHandler.HandleRequest(ctx)
+		case bytes.HasPrefix(path, []byte("/identity")):
+			validateSessionHandler.HandleRequest(ctx)
 		case bytes.HasPrefix(path, []byte("/auth/login/asset/")):
 			ctx.URI().SetPathBytes(bytes.Replace(path, []byte("/auth/login"), []byte(""), -1))
 			assets(ctx)
@@ -88,6 +93,7 @@ func main() {
 		// case "/web/":
 		// 	securityProxy.HandleWebRequest(ctx)
 		default:
+			log.Infof("Security.HandlerNotFound[Method=%v Path=%v]", string(ctx.Method()), string(path))
 			ctx.Error("404 - NotFound", fasthttp.StatusNotFound)
 		}
 	}

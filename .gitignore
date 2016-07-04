@@ -1,6 +1,5 @@
 *.ecf
 *.ini
-*.conf
 *.log
 *.qtpl.go
 *.fasthttp.gz
