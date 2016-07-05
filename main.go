@@ -1,15 +1,15 @@
 package main
 
 import (
-	//"net/url"
 	"bytes"
 	"farm.e-pedion.com/repo/cache"
 	"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/security/database"
 	"farm.e-pedion.com/repo/security/handler"
-	// "farm.e-pedion.com/repo/security/proxy"
+	"farm.e-pedion.com/repo/security/proxy"
 	"github.com/valyala/fasthttp"
+	"net/url"
 )
 
 func main() {
@@ -29,14 +29,14 @@ func main() {
 	if err := cache.Setup(configuration.CacheConfig); err != nil {
 		log.Panicf("CacheClientSetupError: Message='%+v'", err)
 	}
-	// webRemote, err := url.Parse(configuration.WebURL)
-	// if err != nil {
-	// 	log.Panicf("WebURLCSetupError: Message='%+v'", err)
-	// }
-	// apiRemote, err := url.Parse(configuration.ApiURL)
-	// if err != nil {
-	// 	log.Panicf("ApiURLSetupError: Message='%+v'", err)
-	// }
+	webRemote, err := url.Parse(configuration.WebURL)
+	if err != nil {
+		log.Panicf("WebURLCSetupError: Message='%+v'", err)
+	}
+	apiRemote, err := url.Parse(configuration.ApiURL)
+	if err != nil {
+		log.Panicf("ApiURLSetupError: Message='%+v'", err)
+	}
 
 	// http.Handle("/auth/login/", handler.NewLoginHandler())
 	// http.Handle("/auth/login/asset/", http.StripPrefix("/auth/login/asset/", http.FileServer(http.Dir("asset/"))))
@@ -68,7 +68,10 @@ func main() {
 	logoutHandler := handler.NewLogoutHandler()
 	getSessionHandler := handler.NewGetSessionHandler()
 	validateSessionHandler := handler.NewValidateSessionHandler()
-	//securityProxy := proxy.NewSecurityProxy(apiRemote, webRemote)
+	identityHandler := handler.NewLoginManagerHandler()
+	webProxy := proxy.NewWebReverseProxy(webRemote)
+	apiProxy := proxy.NewApiReverseProxy(apiRemote)
+
 	httpHandler := func(ctx *fasthttp.RequestCtx) {
 		path := ctx.Path()
 		//switch string(ctx.Path()) {
@@ -79,19 +82,17 @@ func main() {
 			logoutHandler.HandleRequest(ctx)
 		case bytes.HasPrefix(path, []byte("/identity/session")):
 			getSessionHandler.HandleRequest(ctx)
+		case bytes.HasPrefix(path, []byte("/identity/login/")):
+			identityHandler.HandleRequest(ctx)
 		case bytes.HasPrefix(path, []byte("/identity")):
 			validateSessionHandler.HandleRequest(ctx)
 		case bytes.HasPrefix(path, []byte("/auth/login/asset/")):
 			ctx.URI().SetPathBytes(bytes.Replace(path, []byte("/auth/login"), []byte(""), -1))
 			assets(ctx)
-		//case "/identity/session/":
-		//	identityHandler.GetSession(ctx)
-		//case "/identity/login/":
-		//	identityHandler.LoginManager(ctx)
-		// case "/api/":
-		// 	securityProxy.HandleApiRequest(ctx)
-		// case "/web/":
-		// 	securityProxy.HandleWebRequest(ctx)
+		case bytes.HasPrefix(path, []byte("/api/")):
+			apiProxy.HandleRequest(ctx)
+		case bytes.HasPrefix(path, []byte("/web/")):
+			webProxy.HandleRequest(ctx)
 		default:
 			log.Infof("Security.HandlerNotFound[Method=%v Path=%v]", string(ctx.Method()), string(path))
 			ctx.Error("404 - NotFound", fasthttp.StatusNotFound)
@@ -99,7 +100,7 @@ func main() {
 	}
 
 	log.Infof("%s-ServerStarted: BindAddress[%s]", "0.0.1-100999", handlerConfig.BindAddress)
-	err := fasthttp.ListenAndServe(handlerConfig.BindAddress, httpHandler)
+	err = fasthttp.ListenAndServe(handlerConfig.BindAddress, httpHandler)
 	if err != nil {
 		log.Panicf("HTTPStartupError: Message='%+v'", err)
 	}

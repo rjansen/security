@@ -63,7 +63,7 @@ func Authenticate(username string, password string) (*PublicSession, error) {
 		log.Errorf("Authenticate.SetSessionError: Username[%v] Error[%v]", username, err)
 		return nil, err
 	}
-	log.Infof("Authenticate.NewSession: Username[%v] PublicID[%v] PrivateID[%v] Error[%v]", username, publicSession.ID, publicSession.PrivateSession.ID, err)
+	log.Infof("NewSession[Username=%v PublicID=%v PrivateID=%v Error=%v]", username, publicSession.ID, publicSession.PrivateSession.ID, err)
 	return publicSession, nil
 }
 
@@ -83,7 +83,7 @@ func loginCallback(cookieName string, loginCallbackURL string, publicSession *Pu
 		return err
 	}
 	request.Header.Set("Authorization", fmt.Sprintf("%v: %v", cookieName, string(publicSession.PrivateSession.Token)))
-	log.Debugf("LoginCallback.Authorization: CallbackURL=%v %v=%v Username=%v PrivateSession=%+v", loginCallbackURL, cookieName, string(publicSession.Token), publicSession.Username, publicSession.PrivateSession)
+	log.Debugf("LoginCallbackRequest[CallbackURL=%v %v=%q Username=%v PrivateSession=%+v]", loginCallbackURL, cookieName, publicSession.Token, publicSession.Username, publicSession.PrivateSession)
 	response, err := client.Do(request)
 	if err != nil {
 		return err
@@ -96,13 +96,13 @@ func loginCallback(cookieName string, loginCallbackURL string, publicSession *Pu
 	if err != nil {
 		return err
 	}
-	log.Debugf("LoginCallbackResponseBody: Body=%+v", string(bodyBytes))
+	log.Debugf("LoginCallbackResponse[Body=%q]", bodyBytes)
 	loginData := make(map[string]interface{})
 	if err := json.Unmarshal(bodyBytes, &loginData); err != nil {
 		return err
 	}
 	//delete(loginData, "username")
-	log.Infof("LoginCallbackData: Data=%+v", loginData)
+	log.Infof("LoginCallbackData[Data=%+v]", loginData)
 	publicSession.PrivateSession.Data = loginData
 	return nil
 }
@@ -118,8 +118,8 @@ func CheckHash(hashed string, plain string) error {
 }
 
 //ReadSession loads session from cache
-func ReadSession(token string) (*PublicSession, error) {
-	jwt, err := jws.ParseJWT([]byte(token))
+func ReadSession(token []byte) (*PublicSession, error) {
+	jwt, err := jws.ParseJWT(token)
 	if err != nil {
 		return nil, err
 	}
@@ -131,9 +131,9 @@ func ReadSession(token string) (*PublicSession, error) {
 		Token:    []byte(token),
 		Username: jwt.Claims().Get("username").(string),
 	}
-	log.Debugf("ReadSession: PublicSession[%+v]", publicSession.ID)
 	if err := publicSession.Get(); err != nil {
 		return nil, err
 	}
+	log.Debugf("ReadSession[PublicSession=%+v]", publicSession)
 	return publicSession, nil
 }

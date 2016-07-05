@@ -136,6 +136,11 @@ func (l *Login) Unmarshal(reader io.Reader) error {
 	return l.JSONObject.Unmarshal(&l, reader)
 }
 
+//UnmarshalBytes from a []byte JSON representation
+func (l *Login) UnmarshalBytes(data []byte) error {
+	return l.JSONObject.UnmarshalBytes(&l, data)
+}
+
 //PublicSession represents a public ticket to call the security system
 type PublicSession struct {
 	util.JSONObject
@@ -153,7 +158,7 @@ func (s *PublicSession) String() string {
 //Set sets the session to cache
 func (s *PublicSession) Set() error {
 	ttl := int(s.PrivateSession.TTL / time.Second)
-	log.Debugf("data.StoreSession: ID=%v TTL=%v Session=%+v", s.ID, ttl, s.PrivateSession)
+	log.Debugf("StoringSession[ID=%v TTL=%v Session=%+v]", s.ID, ttl, s.PrivateSession)
 	sessionBytes, err := json.Marshal(s.PrivateSession)
 	if err != nil {
 		return fmt.Errorf("data.MarshalSessionError: Message='ImpossibleToMarshalSession: ID=%v Cause=%v'", s.ID, err.Error())
@@ -162,7 +167,7 @@ func (s *PublicSession) Set() error {
 	if err != nil {
 		return fmt.Errorf("data.SetSessionError: Message='ImpossibleToCacheSession: ID=%v Cause=%v'", s.ID, err.Error())
 	}
-	log.Infof("SessionStored: ID=%v TTL=%v Value=%+v", s.ID, ttl, string(sessionBytes))
+	log.Infof("SessionStored[ID=%v TTL=%v Value=%+v]", s.ID, ttl, string(sessionBytes))
 	return nil
 }
 
@@ -171,12 +176,11 @@ func (s *PublicSession) Get() error {
 	if strings.TrimSpace(s.ID) == "" {
 		return errors.New("data.PublicSession.Get: Message='PublicSession.ID is empty'")
 	}
-	log.Debugf("PublicSession.LoadSessionFromCache: ID=%v", s.ID)
 	sessionBytes, err := cacheClient.Get(s.ID)
 	if err != nil {
 		return fmt.Errorf("data.GetSessionError: Message='ImpossibleToGetCachedSession: ID=%v Cause=%v'", s.ID, err.Error())
 	}
-	log.Debugf("PublicSession.SessionLoadedFromCache: ID=%v Value=%+v", s.ID, string(sessionBytes))
+	log.Debugf("SessionLoadedFromCache[ID=%v ValueLen=%d]", s.ID, len(sessionBytes))
 	privateSession := &identity.Session{}
 	err = json.Unmarshal(sessionBytes, &privateSession)
 	if err != nil {

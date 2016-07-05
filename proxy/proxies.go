@@ -10,6 +10,7 @@ import (
 	"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/security/handler"
+	"github.com/valyala/fasthttp"
 )
 
 var (
@@ -18,12 +19,15 @@ var (
 	pathRegex, _ = regexp.Compile("\\/web|\\/api")
 )
 
-func NewApiReverseProxy(targetURL *url.URL) http.Handler {
+func NewApiReverseProxy(targetURL *url.URL) handler.FastHttpHandler {
 	return handler.NewSessionCookieHandler(
 		&ApiReverseProxy{
 			SecurityConfig: config.BindSecurityConfiguration(),
 			ProxyURL:       targetURL,
 			reverseProxy:   httputil.NewSingleHostReverseProxy(targetURL),
+			proxyClient: &fasthttp.HostClient{
+				Addr: targetURL.Host,
+			},
 		})
 }
 
@@ -32,6 +36,26 @@ type ApiReverseProxy struct {
 	*config.SecurityConfig
 	ProxyURL     *url.URL
 	reverseProxy *httputil.ReverseProxy
+	proxyClient  *fasthttp.HostClient
+}
+
+func (a *ApiReverseProxy) HandleRequest(ctx *fasthttp.RequestCtx) {
+	req := &ctx.Request
+	resp := &ctx.Response
+	requestedPath := string(ctx.URI().RequestURI())
+	if matchs := pathRegex.MatchString(requestedPath); matchs {
+		req.SetRequestURI(pathRegex.ReplaceAllString(requestedPath, ""))
+	}
+	//Creates a JWT to proxy the request
+	privateSession := a.GetSession().PrivateSession
+	if err := privateSession.Serialize(); err != nil {
+		return
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("%v: %v", a.SecurityConfig.CookieName, string(privateSession.Token)))
+	log.Debugf("HeaderAuthorizationFoward[%v=%v Requested=%v Foward=%v%v]", a.SecurityConfig.CookieName, privateSession.ID, requestedPath, a.ProxyURL, string(req.RequestURI()))
+	if err := a.proxyClient.Do(req, resp); err != nil {
+		log.Errorf("ApiProxyHandleRequestError[Path=%v Message='%+v']", requestedPath, err)
+	}
 }
 
 func (a *ApiReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -50,12 +74,15 @@ func (a *ApiReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.reverseProxy.ServeHTTP(w, r)
 }
 
-func NewWebReverseProxy(targetURL *url.URL) http.Handler {
+func NewWebReverseProxy(targetURL *url.URL) handler.FastHttpHandler {
 	return handler.NewSessionCookieHandler(
 		&WebReverseProxy{
 			SecurityConfig: config.BindSecurityConfiguration(),
 			ProxyURL:       targetURL,
 			reverseProxy:   httputil.NewSingleHostReverseProxy(targetURL),
+			proxyClient: &fasthttp.HostClient{
+				Addr: targetURL.Host,
+			},
 		})
 }
 
@@ -64,6 +91,35 @@ type WebReverseProxy struct {
 	*config.SecurityConfig
 	ProxyURL     *url.URL
 	reverseProxy *httputil.ReverseProxy
+	proxyClient  *fasthttp.HostClient
+}
+
+func (a *WebReverseProxy) HandleRequest(ctx *fasthttp.RequestCtx) {
+	req := &ctx.Request
+	resp := &ctx.Response
+	requestedPath := string(ctx.URI().RequestURI())
+	if matchs := pathRegex.MatchString(requestedPath); matchs {
+		req.SetRequestURI(pathRegex.ReplaceAllString(requestedPath, ""))
+	}
+	//Creates a JWT to proxy the request
+	privateSession := a.GetSession().PrivateSession
+	if err := privateSession.Serialize(); err != nil {
+		return
+	}
+
+	var cookie fasthttp.Cookie
+	cookie.SetKey(a.SecurityConfig.CookieName)
+	cookie.SetValueBytes(privateSession.Token)
+	//cookie.SetDomain(l.SecurityConfig.CookieDomain)
+	cookie.SetPath(a.SecurityConfig.CookiePath)
+	cookie.SetExpire(privateSession.Expires)
+
+	req.Header.SetCookie(a.SecurityConfig.CookieName, cookie.String())
+	//req.Header.Set(fmt.Sprintf("X-%v", a.SecurityConfig.CookieName), string(privateSession.Token))
+	log.Debugf("CookieAuthFoward[%v=%v Requested=%v Foward=%v%v]", a.SecurityConfig.CookieName, privateSession.ID, requestedPath, a.ProxyURL, string(req.RequestURI()))
+	if err := a.proxyClient.Do(req, resp); err != nil {
+		log.Errorf("ApiProxyHandleRequestError[Path=%v Message='%+v']", requestedPath, err)
+	}
 }
 
 func (a *WebReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
