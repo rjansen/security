@@ -5,7 +5,8 @@ import (
 	"farm.e-pedion.com/repo/cache"
 	"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/security/database"
+	"farm.e-pedion.com/repo/security/client/cassandra"
+	"farm.e-pedion.com/repo/security/client/http"
 	"farm.e-pedion.com/repo/security/handler"
 	"farm.e-pedion.com/repo/security/proxy"
 	"github.com/valyala/fasthttp"
@@ -23,19 +24,25 @@ func main() {
 
 	log.Infof("ConfigurationLoaded: %+v", configuration)
 
-	if err := database.Setup(configuration.CassandraConfig); err != nil {
-		log.Panicf("DatabaseClientSetupError: Message='%+v'", err)
+	if err := cassandra.Setup(configuration.CassandraConfig); err != nil {
+		log.Panicf("DatabaseClientSetupError[Message='%+v']", err)
 	}
+
+	if err := http.Setup(configuration.HTTPConfig); err != nil {
+		log.Panicf("HTTPClientSetupError[Message='%+v']", err)
+	}
+
 	if err := cache.Setup(configuration.CacheConfig); err != nil {
-		log.Panicf("CacheClientSetupError: Message='%+v'", err)
+		log.Panicf("CacheClientSetupError[Message='%+v']", err)
 	}
+
 	webRemote, err := url.Parse(configuration.WebURL)
 	if err != nil {
-		log.Panicf("WebURLCSetupError: Message='%+v'", err)
+		log.Panicf("WebURLCSetupError[Message='%+v']", err)
 	}
 	apiRemote, err := url.Parse(configuration.ApiURL)
 	if err != nil {
-		log.Panicf("ApiURLSetupError: Message='%+v'", err)
+		log.Panicf("ApiURLSetupError[Message='%+v']", err)
 	}
 
 	// http.Handle("/auth/login/", handler.NewLoginHandler())
@@ -51,17 +58,17 @@ func main() {
 	// 	log.Panicf("HTTPStartupError: Message='%+v'", err)
 	// }
 
-	assetsFS := &fasthttp.FS{
-		// Path to directory to serve.
-		Root: "./",
+	// assetsFS := &fasthttp.FS{
+	// 	// Path to directory to serve.
+	// 	Root: "./",
 
-		// Generate index pages if client requests directory contents.
-		//GenerateIndexPages: true,
+	// 	// Generate index pages if client requests directory contents.
+	// 	//GenerateIndexPages: true,
 
-		// Enable transparent compression to save network traffic.
-		Compress: true,
-	}
-	assets := assetsFS.NewRequestHandler()
+	// 	// Enable transparent compression to save network traffic.
+	// 	Compress: true,
+	// }
+	// assets := assetsFS.NewRequestHandler()
 	handlerConfig := configuration.HandlerConfig
 
 	authHandler := handler.NewAuthHandler()
@@ -86,9 +93,9 @@ func main() {
 			identityHandler.HandleRequest(ctx)
 		case bytes.HasPrefix(path, []byte("/identity")):
 			validateSessionHandler.HandleRequest(ctx)
-		case bytes.HasPrefix(path, []byte("/auth/login/asset/")):
-			ctx.URI().SetPathBytes(bytes.Replace(path, []byte("/auth/login"), []byte(""), -1))
-			assets(ctx)
+		// case bytes.HasPrefix(path, []byte("/auth/login/asset/")):
+		// 	ctx.URI().SetPathBytes(bytes.Replace(path, []byte("/auth/login"), []byte(""), -1))
+		// 	assets(ctx)
 		case bytes.HasPrefix(path, []byte("/api/")):
 			apiProxy.HandleRequest(ctx)
 		case bytes.HasPrefix(path, []byte("/web/")):

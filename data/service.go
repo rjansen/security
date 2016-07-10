@@ -4,14 +4,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"time"
 
+	"farm.e-pedion.com/repo/security/client/http"
 	"farm.e-pedion.com/repo/security/identity"
 	"farm.e-pedion.com/repo/security/util"
 	"github.com/SermoDigital/jose/jws"
 	"golang.org/x/crypto/bcrypt"
+)
+
+var (
+	httpClient http.Client
 )
 
 //Authenticate loads the login representation and check his credentials
@@ -74,29 +77,25 @@ func loginCallback(cookieName string, loginCallbackURL string, publicSession *Pu
 	if err := publicSession.PrivateSession.Serialize(); err != nil {
 		return err
 	}
-	client, err := util.GetTLSHttpClient()
-	if err != nil {
-		return err
+	//client, err := util.GetTLSHttpClient()
+	if httpClient == nil {
+		httpClient = http.NewFastHTTPClient()
 	}
-	request, err := http.NewRequest("POST", loginCallbackURL, nil)
-	if err != nil {
-		return err
+	loginCallbackHeaders := map[string]interface{}{
+		"Authorization": fmt.Sprintf("%v: %q", cookieName, publicSession.PrivateSession.Token),
+		"Accept":        "application/json",
 	}
-	request.Header.Set("Authorization", fmt.Sprintf("%v: %v", cookieName, string(publicSession.PrivateSession.Token)))
 	log.Debugf("LoginCallbackRequest[CallbackURL=%v %v=%q Username=%v PrivateSession=%+v]", loginCallbackURL, cookieName, publicSession.Token, publicSession.Username, publicSession.PrivateSession)
-	response, err := client.Do(request)
+	response, err := httpClient.POST(loginCallbackURL, nil, loginCallbackHeaders)
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close()
-	if response.StatusCode != 200 {
-		return fmt.Errorf("LoginCallbackInvalidStatusCode: Message='Bad status code: %v'", response.StatusCode)
+
+	if response.StatusCode() != 200 {
+		return fmt.Errorf("LoginCallbackInvalidStatusCode[Message='Bad status code: %v']", response.StatusCode())
 	}
-	bodyBytes, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return err
-	}
-	log.Debugf("LoginCallbackResponse[Body=%q]", bodyBytes)
+	bodyBytes := response.Body()
+	log.Debugf("LoginCallbackResponse[ContentLength=%d]", response.ContentLength())
 	loginData := make(map[string]interface{})
 	if err := json.Unmarshal(bodyBytes, &loginData); err != nil {
 		return err

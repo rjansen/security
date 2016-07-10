@@ -5,6 +5,7 @@ BUILD       := $(shell git rev-parse --short HEAD)
 MAKEFILE    := $(word $(words $(MAKEFILE_LIST)), $(MAKEFILE_LIST))
 BASE_DIR    := $(shell cd $(dir $(MAKEFILE)); pwd)
 ALLSOURCES  := $(shell find . -type f -name '*.go')
+PKGS        := $(shell go list ./...)
 
 ETC_DIR := $(BASE_DIR)/etc
 NGNIX_ETC_DIR := $(ETC_DIR)/nginx
@@ -37,9 +38,11 @@ install_sw_deps:
 	#brew uninxtsall --force nginx
 
 	#Only unlink default brew formula nginx
+	brew install memcached
+	brew install cassandra
 	brew unlink nginx
 	brew tap homebrew/nginx
-	brew install nginx-full --with-upload-module
+	brew install nginx-full --with-auth-req
 	#brew link nginx-full
 
 .PHONY: install_deps
@@ -50,6 +53,7 @@ install_deps:
 	go get github.com/valyala/fasthttp
 	go get github.com/valyala/quicktemplate
 	go get github.com/valyala/quicktemplate/qtc
+	go get github.com/valyala/bytebufferpool
 	go get github.com/SermoDigital/jose
 	go get github.com/bradfitz/gomemcache/memcache
 	go get github.com/gocql/gocql
@@ -78,28 +82,18 @@ build:
 run: build
 	./security --bind_address=:8000
 
-.PHONY: pkg_data
-pkg_data:
-	@echo "Add data pkg for tests"
-	$(eval TEST_PKGS += "farm.e-pedion.com/repo/fivecolors/data")
-
-.PHONY: pkg_api
-pkg_api:
-	@echo "Add api pkg for tests"
-	$(eval TEST_PKGS += "farm.e-pedion.com/repo/fivecolors/api")
-
-.PHONY: pkg_test
-pkg_test: pkg_data pkg_api
-	@echo "TEST_PKGS=$(TEST_PKGS)"
-
 .PHONY: test
 test:
 	@if [ "$(TEST_PKGS)" == "" ]; then \
-	    echo "Build Without TEST_PKGS" ;\
-	    go test farm.e-pedion.com/repo/fivecolors/data farm.e-pedion.com/repo/fivecolors/api ;\
+	    echo "Build All Pkgs" ;\
+	    for pkg in $(PKGS); do \
+			go test -v -race $$pkg; \
+		done; \
 	else \
-	    echo "Build With TEST_PKGS=$(TEST_PKGS)" ;\
-	    go test $(TEST_PKGS) ;\
+	    echo "Build Selected Pkgs=$(TEST_PKGS)" ;\
+	    for tstpkg in $(TEST_PKGS); do \
+		    go test -v -race farm.e-pedion.com/repo/security/$$tstpkg; \
+		done; \
 	fi
 
 .PHONY: stop_nginx

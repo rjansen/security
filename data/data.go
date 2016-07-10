@@ -11,7 +11,7 @@ import (
 	"farm.e-pedion.com/repo/cache"
 	"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/security/database"
+	"farm.e-pedion.com/repo/security/client/cassandra"
 	"farm.e-pedion.com/repo/security/identity"
 	"farm.e-pedion.com/repo/security/util"
 	"github.com/SermoDigital/jose/crypto"
@@ -65,7 +65,7 @@ type LoginUserData struct {
 //Login is the data struct of the user identity
 type Login struct {
 	util.JSONObject
-	database.SQLSupport
+	cassandra.Client
 	Username string   `json:"username"`
 	Name     string   `json:"name"`
 	Password string   `json:"password"`
@@ -78,14 +78,14 @@ func (l *Login) CheckCredentials(password string) error {
 }
 
 //Fetch fetchs the Row and sets the values into Login instance
-func (l *Login) Fetch(fetchable database.Fetchable) error {
+func (l *Login) Fetch(fetchable cassandra.Fetchable) error {
 	return fetchable.Scan(&l.Username, &l.Name, &l.Password, &l.Roles)
 }
 
 //Read gets the entity representation from the database.
 func (l *Login) Read() error {
 	if strings.TrimSpace(l.Username) == "" {
-		return errors.New("data.Login.ReadError: Message='Login.Username is empty'")
+		return errors.New("ReadError[Message='Login.Username is empty']")
 	}
 	err := l.QueryOne("select username, name, password, roles from login where username = ? limit 1", l.Fetch, l.Username)
 	if err != nil {
@@ -94,16 +94,19 @@ func (l *Login) Read() error {
 	return nil
 }
 
-//Persist persists the entity representation in the database.
-func (l *Login) Persist() error {
+//Create adds a new login record to the database.
+func (l *Login) Create() error {
 	if strings.TrimSpace(l.Username) == "" {
-		return errors.New("data.Login.PersistError: Message='Login.Username is empty'")
+		return errors.New("PersistError: Message='Login.Username is empty'")
 	}
 	if strings.TrimSpace(l.Name) == "" {
-		return errors.New("data.Login.PersistError: Message='Login.Name is empty'")
+		return errors.New("PersistError: Message='Login.Name is empty'")
 	}
 	if strings.TrimSpace(l.Password) == "" {
-		return errors.New("data.Login.PersistError: Message='Login.Password is empty'")
+		return errors.New("PersistError: Message='Login.Password is empty'")
+	}
+	if len(l.Roles) <= 0 {
+		return errors.New("PersistError: Message='Login.Roles is empty'")
 	}
 	hashedPassword, err := Hash(l.Password)
 	if err != nil {
@@ -111,19 +114,19 @@ func (l *Login) Persist() error {
 	}
 	l.Password = string(hashedPassword)
 
-	err = l.Insert("insert into login (username, name, password, roles) values (?, ?, ?)", l.Username, l.Name, l.Password, l.Roles)
+	err = l.Exec("insert into login (username, name, password, roles) values (?, ?, ?, ?)", l.Username, l.Name, l.Password, l.Roles)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-//Remove removes the entity representation from the database
-func (l *Login) Remove() error {
+//Delete removes the login record from the database
+func (l *Login) Delete() error {
 	if strings.TrimSpace(l.Username) == "" {
-		return errors.New("data.Login.RemoveError: Message='Login.Username is empty'")
+		return errors.New("RemoveError: Message='Login.Username is empty'")
 	}
-	return l.Delete("delete from login where username = ?", l.Username)
+	return l.Exec("delete from login where username = ?", l.Username)
 }
 
 //Marshal to a JSON representation
@@ -158,16 +161,16 @@ func (s *PublicSession) String() string {
 //Set sets the session to cache
 func (s *PublicSession) Set() error {
 	ttl := int(s.PrivateSession.TTL / time.Second)
-	log.Debugf("StoringSession[ID=%v TTL=%v Session=%+v]", s.ID, ttl, s.PrivateSession)
-	sessionBytes, err := json.Marshal(s.PrivateSession)
+	log.Debugf("StoringSession[ID=%v TTL=%v Public=%+v Private=%+v]", s.ID, ttl, s, s.PrivateSession)
+	sessionBytes, err := s.Marshal()
 	if err != nil {
-		return fmt.Errorf("data.MarshalSessionError: Message='ImpossibleToMarshalSession: ID=%v Cause=%v'", s.ID, err.Error())
+		return fmt.Errorf("MarshalSessionError: Message='ImpossibleToMarshalSession: ID=%v Cause=%v'", s.ID, err)
 	}
 	err = cacheClient.Set(s.ID, ttl, sessionBytes)
 	if err != nil {
-		return fmt.Errorf("data.SetSessionError: Message='ImpossibleToCacheSession: ID=%v Cause=%v'", s.ID, err.Error())
+		return fmt.Errorf("SetSessionError: Message='ImpossibleToCacheSession: ID=%v Cause=%v'", s.ID, err)
 	}
-	log.Infof("SessionStored[ID=%v TTL=%v Value=%+v]", s.ID, ttl, string(sessionBytes))
+	log.Infof("SessionStored[ID=%v TTL=%v ValueLen=%+v]", s.ID, ttl, len(sessionBytes))
 	return nil
 }
 
@@ -181,12 +184,10 @@ func (s *PublicSession) Get() error {
 		return fmt.Errorf("data.GetSessionError: Message='ImpossibleToGetCachedSession: ID=%v Cause=%v'", s.ID, err.Error())
 	}
 	log.Debugf("SessionLoadedFromCache[ID=%v ValueLen=%d]", s.ID, len(sessionBytes))
-	privateSession := &identity.Session{}
-	err = json.Unmarshal(sessionBytes, &privateSession)
+	err = json.Unmarshal(sessionBytes, &s)
 	if err != nil {
 		return fmt.Errorf("data.UnmarshalSessionError: Message='ImpossibleToUnmarshalSession: ID=%v Cause=%v'", s.ID, err.Error())
 	}
-	s.PrivateSession = privateSession
 	return nil
 }
 

@@ -541,7 +541,7 @@ func (h *PostLoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Errorf("PostLoginHandler.PostLoginError: Error[%v]", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	} else {
-		if err := login.Persist(); err != nil {
+		if err := login.Create(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
 			//w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -558,7 +558,7 @@ func (h *PostLoginHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 	log.Debugf("PostLoginHandler[Login=%+v]", login)
-	if err := login.Persist(); err != nil {
+	if err := login.Create(); err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
 	}

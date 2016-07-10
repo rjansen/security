@@ -49,8 +49,8 @@ func NewSession(jwt jwt.JWT) (*Session, error) {
 }
 
 //ReadSession loads session from JWT Token
-func ReadSession(token string) (*Session, error) {
-	jwt, err := jws.ParseJWT([]byte(token))
+func ReadSession(token []byte) (*Session, error) {
+	jwt, err := jws.ParseJWT(token)
 	if err != nil {
 		return nil, err
 	}
@@ -70,15 +70,15 @@ type Session struct {
 	ID         string                 `json:"id"`
 	Username   string                 `json:"username"`
 	Roles      []string               `json:"roles"`
+	Data       map[string]interface{} `json:"data"`
 	CreateDate time.Time              `json:"createDate"`
 	TTL        time.Duration          `json:"ttl"`
 	Expires    time.Time              `json:"expires"`
-	Data       map[string]interface{} `json:"data"`
 	Token      []byte                 `json:"-"`
 }
 
 func (s *Session) String() string {
-	return fmt.Sprintf("Session[Issuer=%v ID=%v Username=%v Roles=%v]", s.Issuer, s.ID, s.Username, s.Roles)
+	return fmt.Sprintf("Session[TTL=%v Issuer=%v ID=%v Username=%v Roles=%v]", s.TTL, s.Issuer, s.ID, s.Username, s.Roles)
 }
 
 //Marshal creates a plain JSON representation of the Session

@@ -1,17 +1,24 @@
 package identity
 
 import (
+	"bytes"
 	"net/http"
 	"regexp"
 	"strings"
 
 	"farm.e-pedion.com/repo/config"
+	"github.com/valyala/fasthttp"
 )
 
+type Handler interface {
+	ServeHTTP(w http.ResponseWriter, r *http.Request)
+	HandleRequest(ctx *fasthttp.RequestCtx)
+}
+
 type AuthenticatableHandler interface {
+	Handler
 	GetSession() *Session
 	SetSession(session *Session)
-	ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 
 type AuthenticatedHandler struct {
@@ -42,7 +49,7 @@ type CookieAuthenticatedHandler struct {
 
 func (handler *CookieAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	serveUnauthorizedResult := func() {
-		log.Infof("CookieAuthenticatedHandler.ServeHTTP: UnauthorizedRequest[Message[401 StatusUnauthorized]]")
+		log.Info("HandleResult[Status=UnauthorizedRequest Message=401 StatusUnauthorized]")
 		apiAcceptRegex := "json|plain"
 		accpet := r.Header.Get("Accept")
 		if matches, _ := regexp.MatchString(apiAcceptRegex, accpet); matches {
@@ -57,12 +64,12 @@ func (handler *CookieAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *h
 	//}
 	cookie, err := r.Cookie(handler.SecurityConfig.CookieName)
 	if err == nil {
-		log.Debugf("CookieAuthenticatedHandler.ServeHTTP: Cookie[%v]", cookie.String())
-		jwtSessionToken := cookie.Value
-		log.Infof("CookieAuthenticatedHandler.ServeHTTP: SessionToken[%v]", jwtSessionToken)
+		log.Infof("GotCookieValueFromRequest[Name=%v Value=%s]", handler.SecurityConfig.CookieName, cookie.Value)
+		jwtSessionToken := []byte(cookie.Value)
 		session, err := ReadSession(jwtSessionToken)
+		log.Infof("GotIdentitySession[Session=%v]", session)
 		if err != nil {
-			log.Errorf("identity.CookieAuthenticatedHandler.FindSessionError: Error[%v]", err)
+			log.Errorf("ReadSessionError[Message='%v']", err)
 			serveUnauthorizedResult()
 		} else {
 			handler.AuthenticatableHandler.SetSession(session)
@@ -71,6 +78,44 @@ func (handler *CookieAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *h
 			handler.AuthenticatableHandler.ServeHTTP(w, r)
 		}
 	} else {
+		log.Infof("ParseCookieError[Name=%v Message='%v']", handler.SecurityConfig.CookieName, err)
+		serveUnauthorizedResult()
+	}
+}
+
+func (handler *CookieAuthenticatedHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
+	serveUnauthorizedResult := func() {
+		log.Info("HandleResult[Status=UnauthorizedRequest Message=401 StatusUnauthorized]")
+		apiAcceptRegex := "json|plain"
+		accpet := string(ctx.Request.Header.Peek("Accept"))
+		if matches, _ := regexp.MatchString(apiAcceptRegex, accpet); matches {
+			ctx.SetStatusCode(fasthttp.StatusUnauthorized)
+		} else {
+			ctx.Redirect(handler.ProxyConfig.LoginURL, fasthttp.StatusFound)
+		}
+	}
+	//serveForbiddendResult := func(w http.ResponseWriter, r *http.Request) {
+	//    log.Println("ForbiddenRequest: Message[403 StatusForbidden]")
+	//    w.WriteHeader(http.StatusForbidden)
+	//}
+	cookieValue := ctx.Request.Header.Cookie(handler.SecurityConfig.CookieName)
+	var cookie fasthttp.Cookie
+	err := cookie.ParseBytes(cookieValue)
+	if err == nil {
+		log.Infof("GotCookieValueFromRequest[Name=%v Value=%s]", handler.SecurityConfig.CookieName, cookie.String())
+		session, err := ReadSession(cookie.Value())
+		log.Infof("GotIdentitySession[Session=%v]", session)
+		if err != nil {
+			log.Errorf("ReadSessionError[Message=%v]", err)
+			serveUnauthorizedResult()
+		} else {
+			handler.AuthenticatableHandler.SetSession(session)
+			//r.SetBasicAuth("FFM_ID", ffmId);
+			//r.Header.Set("X-FFM_ID", sid)
+			handler.AuthenticatableHandler.HandleRequest(ctx)
+		}
+	} else {
+		log.Infof("ParseCookieError[Name=%v Message='%v']", handler.SecurityConfig.CookieName, err)
 		serveUnauthorizedResult()
 	}
 }
@@ -85,7 +130,7 @@ type HeaderAuthenticatedHandler struct {
 
 func (handler *HeaderAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	serveUnauthorizedResult := func(w http.ResponseWriter, r *http.Request) {
-		log.Infof("UnauthorizedRequest: Message[401 StatusUnauthorized]")
+		log.Info("HandleResult[Status=UnauthorizedRequest Message=401 StatusUnauthorized]")
 		w.WriteHeader(http.StatusUnauthorized)
 	}
 	//serveForbiddendResult := func(w http.ResponseWriter, r *http.Request) {
@@ -93,14 +138,14 @@ func (handler *HeaderAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *h
 	//    w.WriteHeader(http.StatusForbidden)
 	//}
 	authorization := r.Header.Get("Authorization")
-	log.Debugf("HeaderAuthenticatedHandler.ServeHTTP: Authorization[%v]", authorization)
+	log.Infof("GotHeaderValueFromRequest[Authorization=%s]", authorization)
 	authorizationFields := strings.Fields(authorization)
 	if len(authorizationFields) > 1 {
-		jwtSessionToken := authorizationFields[1]
-		log.Infof("HeaderAuthenticatedHandler.ServeHTTP: SessionToken[%v]", jwtSessionToken)
+		jwtSessionToken := []byte(authorizationFields[1])
 		session, err := ReadSession(jwtSessionToken)
+		log.Infof("GotIdentitySession[Session=%v]", session)
 		if err != nil {
-			log.Errorf("identity.AuthenticatedHandler.FindSessionError: Error[%v]", err)
+			log.Errorf("ReadSessionError[Message='%v']", err)
 			serveUnauthorizedResult(w, r)
 		} else {
 			handler.AuthenticatableHandler.SetSession(session)
@@ -113,22 +158,53 @@ func (handler *HeaderAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *h
 	}
 }
 
-func NewRequestMethodHandler(get http.Handler, post http.Handler) *RequestMethodHandler {
+func (handler *HeaderAuthenticatedHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
+	serveUnauthorizedResult := func() {
+		log.Info("HandleResult[Status=UnauthorizedRequest Message=401 StatusUnauthorized]")
+		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
+	}
+	//serveForbiddendResult := func(w http.ResponseWriter, r *http.Request) {
+	//    log.Println("ForbiddenRequest: Message[403 StatusForbidden]")
+	//    w.WriteHeader(http.StatusForbidden)
+	//}
+	authorization := ctx.Request.Header.Peek("Authorization")
+	log.Infof("GotHeaderValueFromRequest[Authorization=%q]", authorization)
+
+	authorizationFields := bytes.Fields(authorization)
+	if len(authorizationFields) > 1 {
+		jwtToken := authorizationFields[1]
+		session, err := ReadSession(jwtToken)
+		log.Infof("GotIdentitySession[Session=%v]", session)
+		if err != nil {
+			log.Errorf("ReadSessionError[Message='%v']", err)
+			serveUnauthorizedResult()
+		} else {
+			handler.AuthenticatableHandler.SetSession(session)
+			//r.SetBasicAuth("FFM_ID", ffmId);
+			//r.Header.Set("X-FFM_ID", sid)
+			handler.AuthenticatableHandler.HandleRequest(ctx)
+		}
+	} else {
+		serveUnauthorizedResult()
+	}
+}
+
+func NewRequestMethodHandler(get Handler, post Handler) *RequestMethodHandler {
 	return &RequestMethodHandler{Get: get, Post: post}
 }
 
-func NewFullRequestMethodHandler(g http.Handler, p http.Handler, u http.Handler, d http.Handler, o http.Handler, h http.Handler, t http.Handler) *RequestMethodHandler {
+func NewFullRequestMethodHandler(g Handler, p Handler, u Handler, d Handler, o Handler, h Handler, t Handler) *RequestMethodHandler {
 	return &RequestMethodHandler{Get: g, Post: p, Put: u, Delete: d, Options: o, Head: h, Trace: t}
 }
 
 type RequestMethodHandler struct {
-	Get     http.Handler
-	Post    http.Handler
-	Put     http.Handler
-	Delete  http.Handler
-	Options http.Handler
-	Head    http.Handler
-	Trace   http.Handler
+	Get     Handler
+	Post    Handler
+	Put     Handler
+	Delete  Handler
+	Options Handler
+	Head    Handler
+	Trace   Handler
 }
 
 func (h RequestMethodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -164,6 +240,43 @@ func (h RequestMethodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	default:
 		//http.NotFound(w, r)
 		http.Error(w, "identity.RequestMethodHandler.MethodNotAllowed: Method="+r.Method, http.StatusMethodNotAllowed)
+	}
+}
+
+func (h RequestMethodHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
+	method := string(ctx.Method())
+	switch method {
+	case "GET":
+		if h.Get != nil {
+			h.Get.HandleRequest(ctx)
+		}
+	case "POST":
+		if h.Post != nil {
+			h.Post.HandleRequest(ctx)
+		}
+	case "PUT":
+		if h.Put != nil {
+			h.Put.HandleRequest(ctx)
+		}
+	case "DELETE":
+		if h.Delete != nil {
+			h.Delete.HandleRequest(ctx)
+		}
+	case "OPTIONS":
+		if h.Options != nil {
+			h.Options.HandleRequest(ctx)
+		}
+	case "HEAD":
+		if h.Head != nil {
+			h.Head.HandleRequest(ctx)
+		}
+	case "TRACE":
+		if h.Trace != nil {
+			h.Trace.HandleRequest(ctx)
+		}
+	default:
+		//http.NotFound(w, r)
+		ctx.Error("MethodNotAllowed: Method="+method, fasthttp.StatusMethodNotAllowed)
 	}
 }
 
@@ -226,5 +339,49 @@ func (h ProtectedRequestMethodHandler) ServeHTTP(w http.ResponseWriter, r *http.
 	default:
 		//http.NotFound(w, r)
 		http.Error(w, "identity.RequestMethodHandler.MethodNotAllowed: Method="+r.Method, http.StatusMethodNotAllowed)
+	}
+}
+
+func (h ProtectedRequestMethodHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
+	method := string(ctx.Method())
+	switch method {
+	case "GET":
+		if h.Get != nil {
+			h.Get.SetSession(h.session)
+			h.Get.HandleRequest(ctx)
+		}
+	case "POST":
+		if h.Post != nil {
+			h.Post.SetSession(h.session)
+			h.Post.HandleRequest(ctx)
+		}
+	case "PUT":
+		if h.Put != nil {
+			h.Put.SetSession(h.session)
+			h.Put.HandleRequest(ctx)
+		}
+	case "DELETE":
+		if h.Delete != nil {
+			h.Delete.SetSession(h.session)
+			h.Delete.HandleRequest(ctx)
+		}
+	case "OPTIONS":
+		if h.Options != nil {
+			h.Options.SetSession(h.session)
+			h.Options.HandleRequest(ctx)
+		}
+	case "HEAD":
+		if h.Head != nil {
+			h.Head.SetSession(h.session)
+			h.Head.HandleRequest(ctx)
+		}
+	case "TRACE":
+		if h.Trace != nil {
+			h.Trace.SetSession(h.session)
+			h.Trace.HandleRequest(ctx)
+		}
+	default:
+		//http.NotFound(w, r)
+		ctx.Error("MethodNotAllowed: Method="+method, fasthttp.StatusMethodNotAllowed)
 	}
 }

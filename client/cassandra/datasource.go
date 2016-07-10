@@ -1,4 +1,4 @@
-package database
+package cassandra
 
 import (
 	"errors"
@@ -36,7 +36,7 @@ func Setup(config *config.CassandraConfig) error {
 		MaxCons:    10,
 		Datasource: datasource,
 	}
-	log.Infof("ConfigCassandraClient: CassandraPool=%+v", pool)
+	log.Infof("ConfigCassandraDriver[Pool=%+v]", pool)
 	cluster := gocql.NewCluster(pool.Datasource.URL)
 	cluster.ProtoVersion = 4
 	cluster.Keyspace = pool.Datasource.Keyspace
@@ -47,10 +47,10 @@ func Setup(config *config.CassandraConfig) error {
 
 	session, err := cluster.CreateSession()
 	if err != nil {
-		return fmt.Errorf("CreateSessionError: Message=%v", err.Error())
+		return fmt.Errorf("CreateSessionError[Message=%v]", err.Error())
 	}
 	pool.Session = session
-	log.Infof("CassandraClientConfigured: Config=%+v", config)
+	log.Infof("CassandraDriverConfigured[Config=%+v]", config)
 	return nil
 }
 
