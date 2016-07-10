@@ -1,0 +1,11 @@
+#Nginx Flags
+
+be_bind_address=127.0.0.1:8000
+http_bind_address=127.0.0.1:8080
+server_name=darkside.e-pedion.com
+errordoc_alias=/Users/raphaeljansen/Projects/Elysion/FiveColors/source/go/src/farm.e-pedion.com/repo/security/etc/nginx/errordoc/
+html_root=/Users/raphaeljansen/Projects/Elysion/FiveColors/source/go/src/farm.e-pedion.com/repo/security/etc/nginx/
+cookie_name=fivecolors_id
+https_bind_address=127.0.0.1:8443
+ssl_certificate=/Users/raphaeljansen/Apps/Cert/darkside.e-pedion.com.bundle.crt
+ssl_certificate_key=/Users/raphaeljansen/Apps/Cert/darkside.e-pedion.com.unsecure.key

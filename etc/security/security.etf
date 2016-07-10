@@ -1,0 +1,44 @@
+#Handler Flags
+
+bind_address=${bind_address}
+api_url=${api_url}
+web_url=${web_url}
+
+#Cassandra Flags
+
+cassandra_url=${cassandra_url}
+cassandra_keyspace=${cassandra_keyspace}
+cassandra_username=${cassandra_username}
+cassandra_password=${cassandra_password}
+
+#Cache Flags
+
+cache_address=${cache_address}
+
+#Security Flags
+
+encrypt_cost=${encrypt_cost}
+cookie_name=${cookie_name}
+cookie_domain=${cookie_domain}
+cookie_path=${cookie_path}
+client_use_custom_ssl_certificate=${client_use_custom_ssl_certificate} 
+custom_ssl_certificate_path=${custom_ssl_certificate_path}
+
+#Proxy Flags
+
+api_url=${api_url}
+web_url=${web_url}
+login_url=${login_url}
+use_login_callback=${use_login_callback}
+login_callback_url=${login_callback_url}
+redirect_url=${redirect_url}
+form_uri=${form_uri}
+form_username_field=${form_username_field}
+form_password_field=${form_password_field}
+
+#Logger Flags
+
+logger_file=${logger_file}
+logger_level=${logger_level}
+logger_format=${logger_format}
+

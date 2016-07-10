@@ -3,6 +3,7 @@
 *.log
 *.qtpl.go
 *.fasthttp.gz
+*.conf
+*.coverage*
 tags
-main
-security
+/security

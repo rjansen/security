@@ -1,0 +1,44 @@
+#Security Prod Flags
+
+#Handler Flags
+
+bind_address=10.40.0.10:8000
+
+#Cassandra Flags
+
+cassandra_url=10.40.0.10
+cassandra_keyspace=moon_fivecolors
+cassandra_username=moon
+cassandra_password=moon
+
+#Cache Flags
+
+cache_address=10.40.0.10:11211
+
+#Security Flags
+
+encrypt_cost=10
+cookie_name=FIVECOLORS_ID
+cookie_domain=moon.e-pedion.com
+cookie_path=/
+client_use_custom_ssl_certificate=false 
+custom_ssl_certificate_path=/Users/raphaeljansen/Apps/Cert/startcom.sha2.root.ca.crt
+
+#Proxy Flags
+
+api_url=http://10.40.0.10:4000
+web_url=http://10.40.0.10:3000
+login_url=https://moon.e-pedion.com:8443/fivecolors/auth/login/
+use_login_callback=true
+login_callback_url=http://10.40.0.10:4000/player/
+redirect_url=https://moon.e-pedion.com:8443/fivecolors/web/
+form_uri=/fivecolors/auth/login/
+form_username_field=fivecolors_username
+form_password_field=fivecolors_password
+
+#Logger Flags
+
+logger_file=security.log
+logger_level=4
+logger_format=%{time:2006-01-02T15:04:05.999Z-07:00} %{id:03x} [%{level:.5s}] %{shortpkg}.%{longfunc} %{message}
+

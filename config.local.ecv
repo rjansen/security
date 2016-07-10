@@ -1,7 +1,0 @@
-s/${bind_address}/127.0.0.1:8000/
-s/${api_url}/http:\/\/127.0.0.1:6000/
-s/${web_url}/http:\/\/127.0.0.1:7000/
-s/${db_driver}/mysql/
-s/${db_url}/tcp(127.0.0.1:3306)/fivecolors/
-s/${db_username}/fivecolors/
-s/${db_password}/fivecolors/

@@ -1,23 +1,26 @@
-BIN         := security
-REPO        := farm.e-pedion.com/repo/security
+NAME 		:= security
+BIN         := $(NAME)
+REPO        := farm.e-pedion.com/repo/$(NAME)
 BUILD       := $(shell git rev-parse --short HEAD)
 #VERSION     := $(shell git describe --tags $(shell git rev-list --tags --max-count=1))
 MAKEFILE    := $(word $(words $(MAKEFILE_LIST)), $(MAKEFILE_LIST))
 BASE_DIR    := $(shell cd $(dir $(MAKEFILE)); pwd)
 ALLSOURCES  := $(shell find . -type f -name '*.go')
 PKGS        := $(shell go list ./...)
+COVERAGE_FILE   := $(NAME).coverage
+COVERAGE_HTML  	:= $(NAME).coverage.html
+PKG_COVERAGE   	:= $(NAME).pkg.coverage
 
 ETC_DIR := $(BASE_DIR)/etc
-NGNIX_ETC_DIR := $(ETC_DIR)/nginx
-NGINX_CONF_DIR := /usr/local/etc/nginx
-NGINX_PID_FILE := /usr/local/var/run/security_nginx.pid
+CONF_DIR := $(ETC_DIR)/$(NAME)
+CONF := $(CONF_DIR)/$(NAME).conf
+#PID_FILE := /usr/local/var/run/$(NAME)_$(ENV).pid
 
-ECV_DEV := $(BASE_DIR)/config.dev.ecv
-ECV_PROD := $(BASE_DIR)/config.prod.ecv
-ECT := $(BASE_DIR)/config.ect
-ECF := $(BASE_DIR)/security.ecf
+NGINX_CONF_DIR := $(ETC_DIR)/nginx
+NGINX_CONF := $(NGINX_CONF_DIR)/$(NAME).nginx.conf
+#NGINX_PID_FILE := /usr/local/var/run/$(NAME)__$(ENV)_nginx.pid
 
-TARGET_ENV := local
+ENV := local
 TEST_PKGS := 
 
 .PHONY: default
@@ -27,23 +30,20 @@ default: build
 setup: install_sw_deps install_deps setup_nginx
 	@echo "Security set" 
 
-.PHONY: setup_nginx
-setup_nginx:
-	@echo "nginx set"
-	#cp $(NGNIX_ETC_DIR)/fivecolors-web.conf $(NGINX_CONF_DIR)/fivecolors-web.conf
-
 .PHONY: install_sw_deps
 install_sw_deps:
 	#Remove default brew nginx
-	#brew uninxtsall --force nginx
+	#brew uninstall --force nginx
 
-	#Only unlink default brew formula nginx
-	brew install memcached
-	brew install cassandra
+	#Just unlink default brew formula nginx
 	brew unlink nginx
 	brew tap homebrew/nginx
 	brew install nginx-full --with-auth-req
 	#brew link nginx-full
+
+	brew install memcached
+	brew install cassandra
+	brew install go
 
 .PHONY: install_deps
 install_deps:
@@ -61,17 +61,36 @@ install_deps:
 .PHONY: local
 local: 
 	@echo "Set enviroment to local"
-	$(eval TARGET_ENV = "local")
+	$(eval ENV = "local")
 
 .PHONY: dev
 dev: 
 	@echo "Set enviroment to dev"
-	$(eval TARGET_ENV = "dev")
+	$(eval ENV = "dev")
 
 .PHONY: prod
 prod: 
 	@echo "Set enviroment to prod"
-	$(eval TARGET_ENV = "prod")
+	$(eval ENV = "prod")
+
+.PHONY: check_env
+check_env:
+	@if [ "$(ENV)" == "" ]; then \
+	    echo "Env is blank: $(ENV)"; \
+	    exit 540; \
+	fi
+
+.PHONY: filter_conf
+filter_conf: check_env
+	@echo "Filtering Conf Env=$(ENV)"
+	@source $(CONF_DIR)/$(NAME).$(ENV).etv && eval "echo \"`cat $(CONF_DIR)/$(NAME).etf`\"" > $(CONF)
+
+.PHONY: check_conf
+check_conf:
+	@if [ ! -f $(CONF) ]; then \
+	    echo "Config file: $(CONF) not found for Env: $(ENV)"; \
+	    exit 541; \
+	fi
 
 .PHONY: build
 build:
@@ -79,35 +98,98 @@ build:
 	go build farm.e-pedion.com/repo/security
 
 .PHONY: run
-run: build
-	./security --bind_address=:8000
+run: filter_conf check_conf build
+	./security --config $(CONF)
+
+.PHONY: test_loop
+test_loop:
+	@if [ "$(TEST_PKGS)" == "" ]; then \
+	    echo "Test All Pkgs";\
+	    for pkg in $(PKGS); do \
+			go test -v -race $$pkg || exit 501;\
+		done; \
+	else \
+	    echo "Test Selected Pkgs=$(TEST_PKGS)";\
+	    for tstpkg in $(TEST_PKGS); do \
+		    go test -v -race farm.e-pedion.com/repo/security/$$tstpkg || exit 501;\
+		done; \
+	fi
 
 .PHONY: test
 test:
 	@if [ "$(TEST_PKGS)" == "" ]; then \
-	    echo "Build All Pkgs" ;\
-	    for pkg in $(PKGS); do \
-			go test -v -race $$pkg; \
+	    echo "Test All Pkgs";\
+		go test -v -race ./... || exit 501;\
+	else \
+	    echo "Test Selected Pkgs=$(TEST_PKGS)";\
+		SELECTED_TEST_PKGS="";\
+	    for tstpkg in $(TEST_PKGS); do \
+			go test -v -race farm.e-pedion.com/repo/security/$$tstpkg || exit 501;\
+		done; \
+	fi
+
+.PHONY: bench_all
+bench_all:
+	go test -bench=. -v -race ./...
+
+.PHONY: bench
+bench:
+	@if [ "$(TEST_PKGS)" == "" ]; then \
+	    echo "Bench All Pkgs" ;\
+		go test -bench=. -v -race ./... || exit 501;\
+	else \
+	    echo "Test Selected Pkgs=$(TEST_PKGS)" ;\
+	    for tstpkg in $(TEST_PKGS); do \
+		    go test -bench=. -v -race farm.e-pedion.com/repo/security/$$tstpkg || exit 501;\
+		done; \
+	fi
+
+.PHONY: coverage
+coverage:
+	@echo "Running tests with coverage report..."
+	@echo 'mode: set' > $(COVERAGE_FILE)
+	@touch $(PKG_COVERAGE)
+	@touch $(COVERAGE_FILE)
+	@if [ "$(TEST_PKGS)" == "" ]; then \
+		for pkg in $(PKGS); do \
+			go test -v -coverprofile=$(PKG_COVERAGE) $$pkg || exit 501; \
+			grep -v 'mode: set' $(PKG_COVERAGE) >> $(COVERAGE_FILE); \
 		done; \
 	else \
-	    echo "Build Selected Pkgs=$(TEST_PKGS)" ;\
+	    echo "Covegare Test Selected Pkgs=$(TEST_PKGS)" ;\
 	    for tstpkg in $(TEST_PKGS); do \
-		    go test -v -race farm.e-pedion.com/repo/security/$$tstpkg; \
+			go test -v -coverprofile=$(PKG_COVERAGE) farm.e-pedion.com/repo/security/$$tstpkg || exit 501; \
+			grep -v 'mode: set' $(PKG_COVERAGE) >> $(COVERAGE_FILE); \
 		done; \
+	fi
+	@echo "Generating HTML report in $(COVERAGE_HTML)..."
+	go tool cover -html=$(COVERAGE_FILE) -o $(COVERAGE_HTML)
+	@(which -s open && open $(COVERAGE_HTML)) || (which -s gnome-open && gnome-open $(COVERAGE_HTML)) || (exit 0)
+
+.PHONY: filter_nginx_conf
+filter_nginx_conf: check_env
+	@echo "Filtering Nginx Conf Env=$(ENV)"
+	@source $(NGINX_CONF_DIR)/$(NAME).nginx.$(ENV).etv && ENV=$(ENV) eval "echo \"`cat $(NGINX_CONF_DIR)/$(NAME).nginx.etf`\"" > $(NGINX_CONF)
+
+.PHONY: check_conf
+check_nginx_conf:
+	@if [ ! -f $(NGINX_CONF) ]; then \
+	    echo "Nginx Config file: $(NGINX_CONF) not found for Env: $(ENV)"; \
+	    exit 541; \
 	fi
 
 .PHONY: stop_nginx
-stop_nginx:
-	@if [ -f $(NGINX_PID_FILE) ]; then \
-		nginx -s stop -c $(NGNIX_ETC_DIR)/security.nginx.conf; \
+stop_nginx: check_env
+	@if [ -f /usr/local/var/run/$(NAME)_$(ENV)_nginx.pid ]; then \
+		nginx -s stop -c $(NGINX_CONF); \
 	fi
 
 .PHONY: quit_nginx
-quit_nginx:
-	@if [ -f $(NGINX_PID_FILE) ]; then \
-		nginx -s quit -c $(NGNIX_ETC_DIR)/security.nginx.conf; \
+quit_nginx: check_env
+	@if [ -f /usr/local/var/run/$(NAME)_$(ENV)_nginx.pid ]; then \
+		nginx -s quit -c $(NGINX_CONF); \
 	fi
 
 .PHONY: nginx 
-nginx: stop_nginx
-	nginx -c $(NGNIX_ETC_DIR)/security.nginx.conf
+nginx: filter_nginx_conf check_nginx_conf stop_nginx
+	nginx -c $(NGINX_CONF)

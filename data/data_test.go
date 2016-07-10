@@ -24,6 +24,24 @@ func TestCreateLoginSuccess(t *testing.T) {
 	assert.Nil(t, createError)
 }
 
+func BenchmarkCreateLoginSuccess(b *testing.B) {
+	mockCQLClient := cassandra.NewMockClient()
+	mockCQLClient.On("Exec", mock.Anything, mock.Anything).Return(nil)
+
+	for k := 0; k < b.N; k++ {
+		login := &Login{
+			Client:   mockCQLClient,
+			Username: "createLoginTest",
+			Name:     "Create Login Success Test",
+			Password: "123mock321",
+			Roles:    []string{"role1", "role2"},
+		}
+
+		createError := login.Create()
+		assert.Nil(b, createError)
+	}
+}
+
 func TestCreateLoginError(t *testing.T) {
 	mockCQLClient := cassandra.NewMockClient()
 	mockCQLClient.On("Exec", mock.AnythingOfType("string"), mock.AnythingOfType("[]interface {}")).Return(errors.New("CreateErrorMock"))
