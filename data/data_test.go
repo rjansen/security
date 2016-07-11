@@ -3,8 +3,11 @@ package data
 import (
 	"bytes"
 	"errors"
+	"farm.e-pedion.com/repo/cache"
 	"farm.e-pedion.com/repo/security/client/cassandra"
-	"farm.e-pedion.com/repo/security/util"
+	"farm.e-pedion.com/repo/security/identity"
+	"time"
+	//"farm.e-pedion.com/repo/security/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"testing"
@@ -162,11 +165,10 @@ func TestDeleteLoginError(t *testing.T) {
 
 func TestMarshalLoginSuccess(t *testing.T) {
 	login := &Login{
-		JSONObject: util.JSONObject{},
-		Username:   "marshalLoginTest",
-		Name:       "Marshal Login Test",
-		Password:   "123mock321",
-		Roles:      []string{"role1", "role2"},
+		Username: "marshalLoginTest",
+		Name:     "Marshal Login Test",
+		Password: "123mock321",
+		Roles:    []string{"role1", "role2"},
 	}
 
 	loginBytes, marshallError := login.Marshal()
@@ -188,9 +190,7 @@ func TestUnmarshalLoginSuccess(t *testing.T) {
 		"roles": ["adm", "user"]
 		}`)
 	loginJSONReader := bytes.NewReader(loginJSON)
-	login := &Login{
-		JSONObject: util.JSONObject{},
-	}
+	login := &Login{}
 
 	unmarshallError := login.Unmarshal(loginJSONReader)
 	assert.Nil(t, unmarshallError)
@@ -207,9 +207,7 @@ func TestUnmarshalBytesLoginSuccess(t *testing.T) {
 		"password": "1234567890123456",
 		"roles": ["adm", "user"]
 		}`)
-	login := &Login{
-		JSONObject: util.JSONObject{},
-	}
+	login := &Login{}
 
 	unmarshallError := login.UnmarshalBytes(loginJSON)
 	assert.Nil(t, unmarshallError)
@@ -217,5 +215,144 @@ func TestUnmarshalBytesLoginSuccess(t *testing.T) {
 	assert.Equal(t, login.Name, "Teste User Darkside")
 	assert.Equal(t, login.Password, "1234567890123456")
 	assert.Equal(t, login.Roles, []string{"adm", "user"})
+}
 
+func TestSetPublicSessionSuccess(t *testing.T) {
+	mockCacheClient := cache.NewMockClient()
+	ttl := 1 * time.Hour
+	session := &PublicSession{
+		Client: mockCacheClient,
+		ID:     "mockSession",
+		PrivateSession: &identity.Session{
+			TTL: ttl,
+		},
+	}
+	mockCacheClient.On("Set",
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("int"),
+		mock.Anything).Return(nil)
+	setError := session.Set()
+	assert.Nil(t, setError)
+}
+
+func BenchmarkSetPublicSessionSuccess(b *testing.B) {
+	mockCacheClient := cache.NewMockClient()
+	ttl := 1 * time.Hour
+	for n := 0; n < b.N; n++ {
+		session := &PublicSession{
+			Client: mockCacheClient,
+			ID:     "mockSession",
+			PrivateSession: &identity.Session{
+				TTL: ttl,
+			},
+		}
+		mockCacheClient.On("Set",
+			mock.AnythingOfType("string"),
+			mock.AnythingOfType("int"),
+			mock.Anything).Return(nil)
+		setError := session.Set()
+		assert.Nil(b, setError)
+	}
+}
+
+func TestGetPublicSessionSuccess(t *testing.T) {
+	sessionJSON := []byte(`
+		{
+			"iss": "mockIssuer",
+			"id": "mockSession",
+			"username": "mockUsername",
+			"privateSession": {
+				"iss": "mockPrivateIssuer",
+				"id": "mockPrivateSession",
+				"username": "mockUsername",
+				"roles": ["role1", "role2"],
+				"createDate": "2016-07-10T09:15:38.000-03:00",
+				"ttl": 3600,
+				"expires": "2016-07-10T10:15:38.000-03:00",
+				"data": {
+						"id": 1,
+						"username": "mockUsername",
+						"idInventory": 10,
+						"idDecks": [1,2,3,4,22]
+				}
+			}
+		}
+	`)
+	mockCacheClient := cache.NewMockClient()
+	session := &PublicSession{
+		Client: mockCacheClient,
+		ID:     "mockSession",
+	}
+	mockCacheClient.On("Get", mock.AnythingOfType("string")).Return(sessionJSON, nil)
+	getError := session.Get()
+	assert.Nil(t, getError)
+	assert.Equal(t, session.PrivateSession.ID, "mockPrivateSession")
+	assert.EqualValues(t, session.PrivateSession.Data["id"], 1)
+	assert.EqualValues(t, session.PrivateSession.TTL, 3600)
+	assert.EqualValues(t, len(session.PrivateSession.Roles), 2)
+	assert.Equal(t, session.PrivateSession.Roles[0], "role1")
+	assert.Equal(t, session.PrivateSession.Roles[1], "role2")
+}
+
+func BenchmarkGetPublicSessionSuccess(b *testing.B) {
+	sessionJSON := []byte(`
+		{
+			"iss": "mockIssuer",
+			"id": "mockSession",
+			"username": "mockUsername",
+			"privateSession": {
+				"iss": "mockPrivateIssuer",
+				"id": "mockPrivateSession",
+				"username": "mockUsername",
+				"roles": ["role1", "role2"],
+				"createDate": "2016-07-10T09:15:38.000-03:00",
+				"ttl": 3600,
+				"expires": "2016-07-10T10:15:38.000-03:00",
+				"data": {
+						"id": 1,
+						"username": "mockUsername",
+						"idInventory": 10,
+						"idDecks": [1,2,3,4,22]
+				}
+			}
+		}
+	`)
+	mockCacheClient := cache.NewMockClient()
+	for n := 0; n < b.N; n++ {
+		session := &PublicSession{
+			Client: mockCacheClient,
+			ID:     "mockSession",
+		}
+		mockCacheClient.On("Get", mock.AnythingOfType("string")).Return(sessionJSON, nil)
+		getError := session.Get()
+		assert.Nil(b, getError)
+		assert.Equal(b, session.PrivateSession.ID, "mockPrivateSession")
+		assert.EqualValues(b, session.PrivateSession.Data["id"], 1)
+		assert.EqualValues(b, session.PrivateSession.TTL, 3600)
+		assert.EqualValues(b, len(session.PrivateSession.Roles), 2)
+		assert.Equal(b, session.PrivateSession.Roles[0], "role1")
+		assert.Equal(b, session.PrivateSession.Roles[1], "role2")
+	}
+}
+
+func TestSerializePublicSessionSuccess(t *testing.T) {
+	session := &PublicSession{
+		ID:       "mockSession",
+		Issuer:   "mockIssuer",
+		Username: "mockUsername",
+	}
+	serializeError := session.Serialize()
+	assert.Nil(t, serializeError)
+}
+
+func BenchmarkSerializePublicSessionSuccess(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		session := &PublicSession{
+			ID:       "mockSession",
+			Issuer:   "mockIssuer",
+			Username: "mockUsername",
+		}
+		serializeError := session.Serialize()
+		assert.Nil(b, serializeError)
+	}
 }

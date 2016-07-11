@@ -1,7 +1,6 @@
 package data
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -29,7 +28,6 @@ var (
 	jwtCrypto      = crypto.SigningMethodHS512
 	proxyConfig    = config.BindProxyConfiguration()
 	securityConfig = config.BindSecurityConfiguration()
-	cacheClient    = cache.NewClient()
 )
 
 //Authenticator is the data struct of the security authenticato configuration
@@ -146,12 +144,13 @@ func (l *Login) UnmarshalBytes(data []byte) error {
 
 //PublicSession represents a public ticket to call the security system
 type PublicSession struct {
-	util.JSONObject
-	Issuer         string            `json:"iss"`
-	ID             string            `json:"id"`
-	Username       string            `json:"username"`
-	PrivateSession *identity.Session `json:"privateSession"`
-	Token          []byte            `json:"-"`
+	util.JSONObject `json:"-"`
+	cache.Client    `json:"-"`
+	Issuer          string            `json:"iss"`
+	ID              string            `json:"id"`
+	Username        string            `json:"username"`
+	PrivateSession  *identity.Session `json:"privateSession"`
+	Token           []byte            `json:"-"`
 }
 
 func (s *PublicSession) String() string {
@@ -166,7 +165,7 @@ func (s *PublicSession) Set() error {
 	if err != nil {
 		return fmt.Errorf("MarshalSessionError: Message='ImpossibleToMarshalSession: ID=%v Cause=%v'", s.ID, err)
 	}
-	err = cacheClient.Set(s.ID, ttl, sessionBytes)
+	err = s.Client.Set(s.ID, ttl, sessionBytes)
 	if err != nil {
 		return fmt.Errorf("SetSessionError: Message='ImpossibleToCacheSession: ID=%v Cause=%v'", s.ID, err)
 	}
@@ -179,20 +178,15 @@ func (s *PublicSession) Get() error {
 	if strings.TrimSpace(s.ID) == "" {
 		return errors.New("data.PublicSession.Get: Message='PublicSession.ID is empty'")
 	}
-	sessionBytes, err := cacheClient.Get(s.ID)
+	sessionBytes, err := s.Client.Get(s.ID)
 	if err != nil {
 		return fmt.Errorf("data.GetSessionError: Message='ImpossibleToGetCachedSession: ID=%v Cause=%v'", s.ID, err.Error())
 	}
 	log.Debugf("SessionLoadedFromCache[ID=%v ValueLen=%d]", s.ID, len(sessionBytes))
-	err = json.Unmarshal(sessionBytes, &s)
+	err = s.UnmarshalBytes(sessionBytes)
 	if err != nil {
 		return fmt.Errorf("data.UnmarshalSessionError: Message='ImpossibleToUnmarshalSession: ID=%v Cause=%v'", s.ID, err.Error())
 	}
-	return nil
-}
-
-//Refresh refreshs the session data
-func (s *PublicSession) Refresh() error {
 	return nil
 }
 
@@ -204,6 +198,11 @@ func (s *PublicSession) Marshal() ([]byte, error) {
 //Unmarshal from a JSON representation
 func (s *PublicSession) Unmarshal(reader io.Reader) error {
 	return s.JSONObject.Unmarshal(&s, reader)
+}
+
+//UnmarshalBytes from a JSON representation
+func (s *PublicSession) UnmarshalBytes(data []byte) error {
+	return s.JSONObject.UnmarshalBytes(&s, data)
 }
 
 //Serialize writes a JWT representation of this Session in the Token field
