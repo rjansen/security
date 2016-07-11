@@ -64,12 +64,12 @@ type LoginUserData struct {
 
 //Login is the data struct of the user identity
 type Login struct {
-	util.JSONObject
-	cassandra.Client
-	Username string   `json:"username"`
-	Name     string   `json:"name"`
-	Password string   `json:"password"`
-	Roles    []string `json:"roles"`
+	util.JSONObject  `json:"-"`
+	cassandra.Client `json:"-"`
+	Username         string   `json:"username"`
+	Name             string   `json:"name"`
+	Password         string   `json:"password"`
+	Roles            []string `json:"roles"`
 }
 
 //CheckCredentials valoidatess if the the parameter is equal of the password field

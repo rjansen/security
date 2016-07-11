@@ -108,6 +108,14 @@ func (i *ExecSupport) Exec(cql string, params ...interface{}) error {
 	return nil
 }
 
+//NewClient creates a new instance of the CQLClient
+func NewClient() Client {
+	return &CQLClient{
+		QuerySupport: QuerySupport{},
+		ExecSupport:  ExecSupport{},
+	}
+}
+
 //CQLClient adds full query and exec support fot the struct
 type CQLClient struct {
 	QuerySupport

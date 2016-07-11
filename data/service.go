@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"farm.e-pedion.com/repo/security/client/cassandra"
 	"farm.e-pedion.com/repo/security/client/http"
 	"farm.e-pedion.com/repo/security/identity"
 	"farm.e-pedion.com/repo/security/util"
@@ -19,7 +20,10 @@ var (
 
 //Authenticate loads the login representation and check his credentials
 func Authenticate(username string, password string) (*PublicSession, error) {
-	login := &Login{Username: username}
+	login := &Login{
+		Username: username,
+		Client:   cassandra.NewClient(),
+	}
 	if err := login.Read(); err != nil {
 		log.Errorf("Authenticate.ReadLoginError: Username[%v] Error[%v]", username, err)
 		return nil, err
