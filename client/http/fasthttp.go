@@ -162,6 +162,7 @@ func (c FastHTTPClient) POST(url string, body []byte, headers map[string]interfa
 	}
 	return c.do(httpRequest)
 }
+
 func (c FastHTTPClient) PUT(url string, body []byte, headers map[string]interface{}) (Response, error) {
 	httpRequest := &FastHTTPRequest{
 		method:  PUT,
@@ -171,6 +172,7 @@ func (c FastHTTPClient) PUT(url string, body []byte, headers map[string]interfac
 	}
 	return c.do(httpRequest)
 }
+
 func (c FastHTTPClient) DELETE(url string, body []byte, headers map[string]interface{}) (Response, error) {
 	httpRequest := &FastHTTPRequest{
 		method:  DELETE,
@@ -182,6 +184,5 @@ func (c FastHTTPClient) DELETE(url string, body []byte, headers map[string]inter
 }
 
 func (c *FastHTTPClient) Close() error {
-	c.client = nil
 	return nil
 }
