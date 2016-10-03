@@ -11,9 +11,10 @@ COVERAGE_FILE   := $(NAME).coverage
 COVERAGE_HTML  	:= $(NAME).coverage.html
 PKG_COVERAGE   	:= $(NAME).pkg.coverage
 
-ETC_DIR := $(BASE_DIR)/etc
+ETC_DIR := /etc
 CONF_DIR := $(ETC_DIR)/$(NAME)
-CONF := $(CONF_DIR)/$(NAME).conf
+CONF := $(CONF_DIR)/$(NAME)
+#CONF := $(CONF_DIR)/$(NAME).conf
 #PID_FILE := /usr/local/var/run/$(NAME)_$(ENV).pid
 
 NGINX_CONF_DIR := $(ETC_DIR)/nginx
@@ -47,6 +48,7 @@ install_sw_deps:
 
 .PHONY: install_deps
 install_deps:
+	go get -u github.com/kardianos/govendor
 #	go get github.com/go-sql-driver/mysql
 	go get github.com/vharitonsky/iniflags
 	go get github.com/op/go-logging
@@ -98,8 +100,9 @@ build:
 	go build farm.e-pedion.com/repo/security
 
 .PHONY: run
-run: filter_conf check_conf build
-	./security --config $(CONF)
+#run: filter_conf check_conf build
+run: build
+	./security --cfg $(CONF)
 
 .PHONY: test_loop
 test_loop:
