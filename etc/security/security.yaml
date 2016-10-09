@@ -1,11 +1,18 @@
+version: "0.0.1-young"
+environment: "local"
+
 logger:
-    provider: "zap"
-    level: 4
-    format: "text"
-    out: "security.log"
+    provider: "logrus"
+    level: 13
+    format: "text_color"
+    out: "./security.local.log"
 
 cassandra:
-    url: "127.0.0.1"
+    url: "127.0.0.1:9042"
     keyspace: "fivecolors"
     username: "fivecolors"
     password: "fivecolors"
+
+handler:
+    version: "1.0"
+    bind: ":7080"

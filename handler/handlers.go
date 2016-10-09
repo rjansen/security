@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	log = logger.GetLogger("handler")
+	log = logger.GetLogger()
 )
 
 type FastHttpHandler interface {
@@ -74,11 +74,13 @@ func (handler *SessionCookieHandler) ServeHTTP(w http.ResponseWriter, r *http.Re
 	//}
 	cookie, err := r.Cookie(handler.SecurityConfig.CookieName)
 	if err == nil {
-		log.Info("SessionCookieHandler.ServeHTTP: Cookie[%v]", cookie.String())
+		log.Info("SessionCookieHandler.ServeHTTP",
+			logger.String("Cookie", cookie.String()),
+		)
 		jwtToken := []byte(cookie.Value)
 		publicSession, err := data.ReadSession(jwtToken)
 		if err != nil {
-			log.Errorf("handler.SessionCookieHandler.FindSessionError: Error[%v]", err)
+			log.Error("handler.SessionCookieHandler.FindSessionError", logger.Error(err))
 			serveUnauthorizedResult()
 		} else {
 			handler.AuthenticatableHandler.SetSession(publicSession)
@@ -107,14 +109,14 @@ func (handler *SessionCookieHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 	//    w.WriteHeader(http.StatusForbidden)
 	//}
 	cookieData := string(ctx.Request.Header.Cookie(handler.SecurityConfig.CookieName))
-	log.Infof("SessionCookieHandler.HandleRequest: CookieData[%v]", cookieData)
+	log.Info("SessionCookieHandler.HandleRequest", logger.String("CookieData", cookieData))
 	var cookie fasthttp.Cookie
 	err := cookie.Parse(cookieData)
 	if err == nil {
-		log.Infof("SessionCookieHandler.HandleRequest[Cookie=%v]", cookieData)
+		log.Info("SessionCookieHandler.HandleRequest", logger.String("Cookie", cookieData))
 		publicSession, err := data.ReadSession(cookie.Value())
 		if err != nil {
-			log.Errorf("SessionCookieHandler.FindSessionError[Message=%v]", err)
+			log.Error("SessionCookieHandler.FindSessionError", logger.Error(err))
 			serveUnauthorizedResult()
 		} else {
 			handler.AuthenticatableHandler.SetSession(publicSession)
@@ -123,7 +125,11 @@ func (handler *SessionCookieHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 			handler.AuthenticatableHandler.HandleRequest(ctx)
 		}
 	} else {
-		log.Infof("SessionCookieHandler.HandleRequestError: Cookie[%v] Message='%v'", cookieData, err.Error())
+		log.Info("SessionCookieHandler.HandleRequestError",
+			logger.String("Cookie", cookieData),
+			logger.String("Message", cookieData),
+			logger.Error(err),
+		)
 		serveUnauthorizedResult()
 	}
 }
@@ -146,14 +152,14 @@ func (handler *SessionHeaderHandler) ServeHTTP(w http.ResponseWriter, r *http.Re
 	//    w.WriteHeader(http.StatusForbidden)
 	//}
 	authorization := r.Header.Get("Authorization")
-	log.Debugf("HeaderAuthenticatedHandler.ServeHTTP: Authorization[%v]", authorization)
+	log.Debug("HeaderAuthenticatedHandler.ServeHTTP", logger.String("Authorization", authorization))
 	authorizationFields := strings.Fields(authorization)
 	if len(authorizationFields) > 1 {
 		jwtToken := []byte(authorizationFields[1])
-		log.Debugf("HeaderAuthenticatedHandler.ServeHTTP: SessionToken[%v]", jwtToken)
+		log.Debug("HeaderAuthenticatedHandler.ServeHTTP", logger.Bytes("SessionToken", jwtToken))
 		publicSession, err := data.ReadSession(jwtToken)
 		if err != nil {
-			log.Errorf("identity.AuthenticatedHandler.FindSessionError: Error[%v]", err)
+			log.Error("identity.AuthenticatedHandler.FindSessionError", logger.Error(err))
 			serveUnauthorizedResult(w, r)
 		} else {
 			handler.AuthenticatableHandler.SetSession(publicSession)
@@ -176,14 +182,14 @@ func (handler *SessionHeaderHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 	//    w.WriteHeader(http.StatusForbidden)
 	//}
 	authorization := ctx.Request.Header.Peek("Authorization")
-	log.Debugf("RequestHeader[Authorization=%q]", authorization)
+	log.Debug("RequestHeader", logger.Bytes("Authorization", authorization))
 	authorizationFields := bytes.Fields(authorization)
 	if len(authorizationFields) > 1 {
 		jwtToken := authorizationFields[1]
-		log.Debugf("SessionToken[Value=%q]", jwtToken)
+		log.Debug("SessionToken", logger.Bytes("Value", jwtToken))
 		publicSession, err := data.ReadSession(jwtToken)
 		if err != nil {
-			log.Errorf("FindSessionError[Message='%v']", err)
+			log.Error("FindSessionError", logger.Error(err))
 			serveUnauthorizedResult()
 		} else {
 			handler.AuthenticatableHandler.SetSession(publicSession)
@@ -215,7 +221,11 @@ func (l *AuthHandler) renderLoginPage(ctx *fasthttp.RequestCtx, parameters data.
 }
 
 func (l *AuthHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
-	log.Debugf("LoginHandler.ServeHTTP: Method[%v] URL[%v] HOST[%v]", string(ctx.Method()), ctx.URI(), string(ctx.Host()))
+	log.Debug("LoginHandler.ServeHTTP",
+		logger.Bytes("Method", ctx.Method()),
+		logger.String("URI", ctx.URI().String()),
+		logger.Bytes("HOST", ctx.Host()),
+	)
 	method := ctx.Method()
 	if bytes.Equal(method, []byte("GET")) {
 		parameters := data.LoginPageData{
@@ -228,12 +238,18 @@ func (l *AuthHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 		}
 		l.renderLoginPage(ctx, parameters)
 		//log.Printf("LoginHandler.GetAuthPage: Method[GET] URL[%v] HOST[%v] Headers[%q]", r.URL, r.Host, r.Header)
-		log.Debugf("LoginHandler.GetAuthPage: Method[GET] URL[%v] HOST[%v]", ctx.URI(), string(ctx.Host()))
+		log.Debug("LoginHandler.GetAuthPage Method=GET",
+			logger.String("URI", ctx.URI().String()),
+			logger.Bytes("HOST", ctx.Host()),
+		)
 	} else if bytes.Equal(method, []byte("POST")) {
 		resultContentNegotiator := func(err error) {
 			apiAcceptRegex := "json|plain"
 			accept := string(ctx.Request.Header.Peek("Accept"))
-			log.Infof("LoginHandler.ContentNegotiator: ApiAcceptRegex[%v] Accept[%v]", apiAcceptRegex, accept)
+			log.Info("LoginHandler.ContentNegotiator",
+				logger.String("ApiAcceptRegex", apiAcceptRegex),
+				logger.String("Accept", accept),
+			)
 			if matches, _ := regexp.MatchString(apiAcceptRegex, accept); matches {
 				if err == nil {
 					ctx.SetStatusCode(fasthttp.StatusOK)
@@ -261,17 +277,28 @@ func (l *AuthHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 			}
 		}
 		//log.Printf("LoginHandler.CreatingSession: Method[POST] URL[%v] HOST[%v] Headers[%q]", r.URL, r.Host, r.Header)
-		log.Infof("LoginHandler.CreatingSession: Method[POST] URL[%v] HOST[%v]", ctx.URI(), string(ctx.Host()))
+		log.Info("LoginHandler.CreatingSession Method=POST",
+			logger.String("URI", ctx.URI().String()),
+			logger.Bytes("HOST", ctx.Host()),
+		)
 		//Dummy credentials
 		username := string(ctx.FormValue(l.ProxyConfig.FormUsernameField))
 		password := string(ctx.FormValue(l.ProxyConfig.FormPasswordField))
 		session, err := data.Authenticate(username, password)
 		if err != nil {
-			log.Errorf("LoginHandler.AuthenticationFailed: Username[%v] Password[%v] Error[%v]", username, password, err)
+			log.Error("LoginHandler.AuthenticationFailed",
+				logger.String("Username", username),
+				logger.String("Password", password),
+				logger.Error(err),
+			)
 			resultContentNegotiator(err)
 			return
 		}
-		log.Debugf("LoginHandler.SessionExpires: SessionId[%v] Now[%v] Expires[%v]", session.ID, time.Now(), session.PrivateSession.Expires)
+		log.Debug("LoginHandler.SessionExpires",
+			logger.String("SessionId", session.ID),
+			logger.Time("Now", time.Now()),
+			logger.Time("Expires", session.PrivateSession.Expires),
+		)
 		var cookie fasthttp.Cookie
 		cookie.SetKey(l.SecurityConfig.CookieName)
 		//Name:    l.SecurityConfig.CookieName,
@@ -288,7 +315,11 @@ func (l *AuthHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 		//r.AddCookie(cookie)
 		ctx.Response.Header.Set(fmt.Sprintf("X-%v", l.SecurityConfig.CookieName), string(session.Token))
 		//w.Header().Set(fmt.Sprintf("X-%v", l.SecurityConfig.CookieName), string(session.Token))
-		log.Infof("LoginHandler.CreatedSession: SessionId[%v] Cookie[%v] URL[%v]", session.ID, string(cookie.Cookie()), ctx.URI())
+		log.Info("LoginHandler.CreatedSession",
+			logger.String("SessionId", session.ID),
+			logger.Bytes("Cookie", cookie.Cookie()),
+			logger.String("URI", ctx.URI().String()),
+		)
 		resultContentNegotiator(nil)
 	}
 }
@@ -316,11 +347,14 @@ type LogoutHandler struct {
 
 func (l *LogoutHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 	privateSession := l.GetSession().PrivateSession
-	log.Infof("LogoutHandler.SessionFound: %v=%v", privateSession.ID, privateSession.Username)
+	log.Info("LogoutHandler.SessionFound", logger.String(privateSession.ID, privateSession.Username))
 	nowTime := time.Now()
 	expiresTime := nowTime.AddDate(0, 0, -1)
 	//log.Infof("LogoutHandler.CookieExpires: Session[%v=%v] Now[%v] Expires[%v]", privateSession.ID, privateSession.Username, nowTime, expiresTime)
-	log.Infof("LogoutHandler.CookieExpires: Now[%v] Expires[%v]", nowTime, expiresTime)
+	log.Info("LogoutHandler.CookieExpires",
+		logger.Time("Now", nowTime),
+		logger.Time("Expires", expiresTime),
+	)
 	var logoutCookie fasthttp.Cookie
 	logoutCookie.SetKey(l.SecurityConfig.CookieName)
 	logoutCookie.SetDomain(l.SecurityConfig.CookieDomain)
@@ -340,10 +374,14 @@ func (l *LogoutHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 
 func (l *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	privateSession := l.GetSession().PrivateSession
-	log.Infof("LogoutHandler.SessionFound: %v=%v", privateSession.ID, privateSession.Username)
+	log.Info("LogoutHandler.SessionFound", logger.String(privateSession.ID, privateSession.Username))
 	nowTime := time.Now()
 	expiresTime := nowTime.AddDate(0, 0, -1)
-	log.Infof("LogoutHandler.CookieExpires: Session[%v=%v] Now[%v] Expires[%v]", privateSession.ID, privateSession.Username, nowTime, expiresTime)
+	log.Info("LogoutHandler.CookieExpires",
+		logger.String(privateSession.ID, privateSession.Username),
+		logger.Time("Now", nowTime),
+		logger.Time("Expires", expiresTime),
+	)
 	cookieExpired := &http.Cookie{
 		Name:    l.SecurityConfig.CookieName,
 		Domain:  l.SecurityConfig.CookieDomain,
@@ -374,13 +412,13 @@ func (s *GetSessionHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 	method := ctx.Method()
 	if bytes.Equal(method, []byte("GET")) {
 		privateSession := s.GetSession().PrivateSession
-		log.Debugf("SessionFound: %v=%v", privateSession.ID, privateSession.Username)
+		log.Debug("SessionFound", logger.String(privateSession.ID, privateSession.Username))
 
 		session := s.GetSession()
 
 		jsonData, err := session.Marshal()
 		if err != nil {
-			log.Errorf("SessionHandler.WriteResponseError: SessionId[%v] Error[%v]", session.ID, err)
+			log.Error("SessionHandler.WriteResponseError", logger.String("SessionId", session.ID), logger.Error(err))
 			ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		}
 
@@ -388,9 +426,9 @@ func (s *GetSessionHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 		ctx.SetStatusCode(fasthttp.StatusOK)
 		bytesWritten, err := ctx.Write(jsonData)
 		if err != nil {
-			log.Errorf("SessionHandler.WriteResponseError: SessionId[%v] Error[%v]", session.ID, err)
+			log.Error("SessionHandler.WriteResponseError", logger.String("SessionId", session.ID), logger.Error(err))
 		} else {
-			log.Infof("SessionHandler.ResponseWritten: SessionId[%v] Bytes[%v]", session.ID, bytesWritten)
+			log.Info("SessionHandler.ResponseWritten", logger.String("SessionId", session.ID), logger.Int("Bytes", bytesWritten))
 		}
 	}
 }
@@ -398,16 +436,20 @@ func (s *GetSessionHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 func (h *GetSessionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		privateSession := h.GetSession().PrivateSession
-		log.Debugf("GetSessionHandler.SessionFound: %v=%v", privateSession.ID, privateSession.Username)
+		log.Debug("GetSessionHandler.SessionFound", logger.String(privateSession.ID, privateSession.Username))
 
 		urlPathParameters := strings.Split(r.URL.Path, "/")
-		log.Debugf("SessionHandler.Get: URL[%q] PathParameters[%q] JobId[%v]!", r.URL.Path, urlPathParameters, urlPathParameters[3])
+		log.Debug("SessionHandler.Get",
+			logger.String("URI", r.URL.Path),
+			logger.Struct("PathParameters", urlPathParameters),
+			logger.String("JobId", urlPathParameters[3]),
+		)
 
 		session := h.GetSession()
 
 		jsonData, err := session.Marshal()
 		if err != nil {
-			log.Errorf("SessionHandler.WriteResponseError: SessionId[%v] Error[%v]", session.ID, err)
+			log.Error("SessionHandler.WriteResponseError", logger.String("SessionId", session.ID), logger.Error(err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 
@@ -415,9 +457,9 @@ func (h *GetSessionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		bytesWritten, err := w.Write(jsonData)
 		if err != nil {
-			log.Errorf("SessionHandler.WriteResponseError: SessionId[%v] Error[%v]", session.ID, err)
+			log.Error("SessionHandler.WriteResponseError", logger.String("SessionID", session.ID), logger.Error(err))
 		} else {
-			log.Infof("SessionHandler.ResponseWritten: SessionId[%v] Bytes[%v]", session.ID, bytesWritten)
+			log.Info("SessionHandler.ResponseWritten", logger.String("SessionId", session.ID), logger.Int("Bytes", bytesWritten))
 		}
 	}
 }
@@ -438,7 +480,12 @@ func (v *ValidateSessionHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 	method := string(ctx.Method())
 	session := v.GetSession()
 	privateSession := session.PrivateSession
-	log.Debugf("HandleRequest.ValidateSessionOK[Method=%v Session=%v/%v:(%v)]", method, session.ID, privateSession.ID, privateSession.Username)
+	log.Debug("HandleRequest.ValidateSessionOK",
+		logger.String("Method", method),
+		logger.String("PublicID", session.ID),
+		logger.String("PrivateID", privateSession.ID),
+		logger.String("Username", privateSession.Username),
+	)
 
 	ctx.SetContentType("text/plain; charset=utf-8")
 	ctx.Response.Header.Set("Content-Length", "0")
@@ -449,8 +496,12 @@ func (v *ValidateSessionHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	method := r.Method
 	session := v.GetSession()
 	privateSession := session.PrivateSession
-	log.Debugf("ServeHTTP.ValidateSessionOK[Method=%v Session=%v/%v:(%v)]", method, session.ID, privateSession.ID, privateSession.Username)
-
+	log.Debug("ServeHTTP.ValidateSessionOK",
+		logger.String("Method", method),
+		logger.String("PublicID", session.ID),
+		logger.String("PrivateID", privateSession.ID),
+		logger.String("Username", privateSession.Username),
+	)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Content-Length", "0")
 	w.WriteHeader(http.StatusOK)
@@ -476,19 +527,23 @@ type GetLoginHandler struct {
 
 func (h *GetLoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	urlPathParameters := strings.Split(r.URL.Path, "/")
-	log.Debugf("GetUsernHandler.Get: URL[%q] PathParameters[%q] JobId[%v]!", r.URL.Path, urlPathParameters, urlPathParameters[3])
+	log.Debug("GetUsernHandler.Get",
+		logger.String("URL", r.URL.Path),
+		logger.Struct("PathParameters", urlPathParameters),
+		logger.String("JobId", urlPathParameters[3]),
+	)
 	username := urlPathParameters[3]
 
 	login := data.Login{Username: username}
 	if err := login.Read(); err != nil {
-		log.Errorf("handler.GetLoginHandler.ReadLoginError: Username[%v] Error[%v]", username, err)
+		log.Error("handler.GetLoginHandler.ReadLoginError", logger.String("Username", username), logger.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	jsonData, err := json.Marshal(login)
 	if err != nil {
-		log.Errorf("handler.GetLoginHandler.WriteResponseError: Username[%v] Error[%v]", username, err)
+		log.Error("handler.GetLoginHandler.WriteResponseError", logger.String("Username", username), logger.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -497,26 +552,26 @@ func (h *GetLoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	bytesWritten, err := w.Write(jsonData)
 	if err != nil {
-		log.Errorf("GetUserHandler.WriteResponseError: Username[%v] Error[%v]", username, err)
+		log.Error("GetUserHandler.WriteResponseError", logger.String("Username", username), logger.Error(err))
 	} else {
-		log.Infof("GetUserHandler.ResponseWritten: Username[%v] Bytes[%v]", username, bytesWritten)
+		log.Info("GetUserHandler.ResponseWritten", logger.String("Username", username), logger.Int("Bytes", bytesWritten))
 	}
 }
 
 func (h *GetLoginHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
-	log.Debugf("GetUsernHandler[URI=%v]", ctx.URI())
+	log.Debug("GetUsernHandler", logger.String("URI", ctx.URI().String()))
 	username := string(ctx.URI().LastPathSegment())
 
 	login := data.Login{Username: username}
 	if err := login.Read(); err != nil {
-		log.Errorf("ReadLoginError[Username=%v Message='%v']", username, err)
+		log.Error("ReadLoginError", logger.String("Username", username), logger.Error(err))
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
 	}
 
 	jsonData, err := json.Marshal(login)
 	if err != nil {
-		log.Errorf("handler.GetLoginHandler.WriteResponseError: Username[%v] Error[%v]", username, err)
+		log.Error("handler.GetLoginHandler.WriteResponseError", logger.String("Username", username), logger.Error(err))
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
 	}
@@ -525,9 +580,9 @@ func (h *GetLoginHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	bytesWritten, err := ctx.Write(jsonData)
 	if err != nil {
-		log.Errorf("WriteResponseError[Username[%v] Error[%v]", username, err)
+		log.Error("WriteResponseError", logger.String("Username", username), logger.Error(err))
 	} else {
-		log.Infof("ResponseWritten: Username[%v] Bytes[%v]", username, bytesWritten)
+		log.Info("ResponseWritten", logger.String("Username", username), logger.Int("Bytes", bytesWritten))
 	}
 }
 
@@ -538,7 +593,7 @@ type PostLoginHandler struct {
 func (h *PostLoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	login := data.Login{}
 	if err := login.Unmarshal(r.Body); err != nil {
-		log.Errorf("PostLoginHandler.PostLoginError: Error[%v]", err.Error())
+		log.Error("PostLoginHandler.PostLoginError", logger.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	} else {
 		if err := login.Create(); err != nil {
@@ -553,11 +608,11 @@ func (h *PostLoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *PostLoginHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 	login := data.Login{}
 	if err := login.UnmarshalBytes(ctx.PostBody()); err != nil {
-		log.Errorf("PostLoginHandlerDecodeError[Message='%v']", err.Error())
+		log.Error("PostLoginHandlerDecodeError", logger.Error(err))
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
 	}
-	log.Debugf("PostLoginHandler[Login=%+v]", login)
+	log.Debug("PostLoginHandler", logger.String("Login", login.String()))
 	if err := login.Create(); err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return

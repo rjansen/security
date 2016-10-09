@@ -2,6 +2,7 @@ package cassandra
 
 import (
 	"errors"
+	"farm.e-pedion.com/repo/logger"
 	"fmt"
 	"github.com/gocql/gocql"
 	"strings"
@@ -101,10 +102,16 @@ func (i *ExecSupport) Exec(cql string, params ...interface{}) error {
 	defer i.Release()
 	err := i.session.Query(cql, params...).Exec()
 	if err != nil {
-		log.Errorf("CQLExecuted[CQL=%s Parameters=%q Message='ExecutionFailed']", cql, params)
+		log.Error("CQLExecutionFalied",
+			logger.String("CQL", cql),
+			logger.Struct("Parameters", params),
+		)
 		return err
 	}
-	log.Debugf("CQLExecuted[CQL=%s Parameters=%q Message='ExecutedSuccessfully']", cql, params)
+	log.Debug("CQLExecutedSuccessfully",
+		logger.String("CQL", cql),
+		logger.Struct("Parameters", params),
+	)
 	return nil
 }
 

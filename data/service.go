@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/security/client/cassandra"
 	"farm.e-pedion.com/repo/security/client/http"
 	"farm.e-pedion.com/repo/security/identity"
@@ -25,21 +26,33 @@ func Authenticate(username string, password string) (*PublicSession, error) {
 		Client:   cassandra.NewClient(),
 	}
 	if err := login.Read(); err != nil {
-		log.Errorf("Authenticate.ReadLoginError: Username[%v] Error[%v]", username, err)
+		log.Error("Authenticate.ReadLoginError",
+			logger.String("Username", username),
+			logger.Error(err),
+		)
 		return nil, err
 	}
 	if err := login.CheckCredentials(password); err != nil {
-		log.Errorf("Authenticate.CheckCredentialsError: Username[%v] Error[%v]", username, err)
+		log.Error("Authenticate.CheckCredentialsError",
+			logger.String("Username", username),
+			logger.Error(err),
+		)
 		return nil, err
 	}
 	publicSessionID, err := util.NewUUID()
 	if err != nil {
-		log.Errorf("Authenticate.NewPublicSessionIDError: Username[%v] Error[%v]", username, err)
+		log.Error("Authenticate.NewPublicSessionIDError",
+			logger.String("Username", username),
+			logger.Error(err),
+		)
 		return nil, err
 	}
 	sessionID, err := util.NewUUID()
 	if err != nil {
-		log.Errorf("Authenticate.NewSessionIDError: Username[%v] Error[%v]", username, err)
+		log.Error("Authenticate.NewSessionIDError",
+			logger.String("Username", username),
+			logger.Error(err),
+		)
 		return nil, err
 	}
 	expires := time.Now().Add(day)
@@ -63,14 +76,25 @@ func Authenticate(username string, password string) (*PublicSession, error) {
 		}
 	}
 	if err := publicSession.Serialize(); err != nil {
-		log.Errorf("data.Authenticate.JWTSerializeError: Username[%v] Error[%v]", username, err)
+		log.Error("data.Authenticate.JWTSerializeError",
+			logger.String("Username", username),
+			logger.Error(err),
+		)
 		return nil, err
 	}
 	if err := publicSession.Set(); err != nil {
-		log.Errorf("Authenticate.SetSessionError: Username[%v] Error[%v]", username, err)
+		log.Error("Authenticate.SetSessionError",
+			logger.String("Username", username),
+			logger.Error(err),
+		)
 		return nil, err
 	}
-	log.Infof("NewSession[Username=%v PublicID=%v PrivateID=%v Error=%v]", username, publicSession.ID, publicSession.PrivateSession.ID, err)
+	log.Info("NewSession",
+		logger.String("Username", username),
+		logger.String("PublicID", publicSession.ID),
+		logger.String("PrivateID", publicSession.PrivateSession.ID),
+		logger.Error(err),
+	)
 	return publicSession, nil
 }
 
@@ -89,7 +113,12 @@ func loginCallback(cookieName string, loginCallbackURL string, publicSession *Pu
 		"Authorization": fmt.Sprintf("%v: %q", cookieName, publicSession.PrivateSession.Token),
 		"Accept":        "application/json",
 	}
-	log.Debugf("LoginCallbackRequest[CallbackURL=%v %v=%q Username=%v PrivateSession=%+v]", loginCallbackURL, cookieName, publicSession.Token, publicSession.Username, publicSession.PrivateSession)
+	log.Debug("LoginCallbackRequest",
+		logger.String("CallbackURL", loginCallbackURL),
+		logger.Bytes(cookieName, publicSession.Token),
+		logger.String("Username", publicSession.Username),
+		logger.String("PrivateSession", publicSession.PrivateSession.String()),
+	)
 	response, err := httpClient.POST(loginCallbackURL, nil, loginCallbackHeaders)
 	if err != nil {
 		return err
@@ -99,13 +128,13 @@ func loginCallback(cookieName string, loginCallbackURL string, publicSession *Pu
 		return fmt.Errorf("LoginCallbackInvalidStatusCode[Message='Bad status code: %v']", response.StatusCode())
 	}
 	bodyBytes := response.Body()
-	log.Debugf("LoginCallbackResponse[ContentLength=%d]", response.ContentLength())
+	log.Debug("LoginCallbackResponse", logger.Int("ContentLength", response.ContentLength()))
 	loginData := make(map[string]interface{})
 	if err := json.Unmarshal(bodyBytes, &loginData); err != nil {
 		return err
 	}
 	//delete(loginData, "username")
-	log.Infof("LoginCallbackData[Data=%+v]", loginData)
+	log.Info("LoginCallbackData", logger.Struct("Data", loginData))
 	publicSession.PrivateSession.Data = loginData
 	return nil
 }
@@ -137,6 +166,6 @@ func ReadSession(token []byte) (*PublicSession, error) {
 	if err := publicSession.Get(); err != nil {
 		return nil, err
 	}
-	log.Debugf("ReadSession[PublicSession=%+v]", publicSession)
+	log.Debug("ReadSession", logger.Struct("PublicSession", publicSession))
 	return publicSession, nil
 }

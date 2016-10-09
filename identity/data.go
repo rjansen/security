@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	log       = logger.GetLogger("identity")
+	log       = logger.GetLogger()
 	jwtKey    = []byte("321ewqdsa#@!")
 	jwtCrypto = crypto.SigningMethodHS512
 )
@@ -24,7 +24,9 @@ func NewSession(jwt jwt.JWT) (*Session, error) {
 	if jwt == nil {
 		return nil, errors.New("JWT is nil")
 	}
-	log.Debugf("JWTSessionClaims: Claims=%+v", jwt.Claims())
+	log.Debug("JWTSessionClaims",
+		logger.Struct("Claims", jwt.Claims()),
+	)
 	if !jwt.Claims().Has("iss") || !jwt.Claims().Has("id") || !jwt.Claims().Has("username") || !jwt.Claims().Has("roles") {
 		return nil, errors.New("Some required parameter is missing: iss, id, username, roles")
 	}

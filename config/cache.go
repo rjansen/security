@@ -14,7 +14,7 @@ type CacheConfig struct {
 	CacheAddress string
 }
 
-func (c *CacheConfig) String() string {
+func (c CacheConfig) String() string {
 	return fmt.Sprintf("CacheConfig[CacheAddress=%v]", c.CacheAddress)
 }
 

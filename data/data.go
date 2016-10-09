@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	log = logger.GetLogger("data")
+	log = logger.GetLogger()
 	//memoryCache    = make(map[string]*identity.Session)
 	jwtKey         = []byte("321ewqdsa#@!")
 	jwtCrypto      = crypto.SigningMethodHS512
@@ -68,6 +68,10 @@ type Login struct {
 	Name             string   `json:"name"`
 	Password         string   `json:"password"`
 	Roles            []string `json:"roles"`
+}
+
+func (l Login) String() string {
+	return fmt.Sprintf("Login[Username=%s Name=%s Roles=%v]", l.Username, l.Name, l.Roles)
 }
 
 //CheckCredentials valoidatess if the the parameter is equal of the password field
@@ -160,7 +164,11 @@ func (s *PublicSession) String() string {
 //Set sets the session to cache
 func (s *PublicSession) Set() error {
 	ttl := int(s.PrivateSession.TTL / time.Second)
-	log.Debugf("StoringSession[ID=%v TTL=%v Public=%+v Private=%+v]", s.ID, ttl, s, s.PrivateSession)
+	log.Debug("StoringSession",
+		logger.String("ID", s.ID),
+		logger.Int("TTL", ttl),
+		logger.String("Private", s.PrivateSession.String()),
+	)
 	sessionBytes, err := s.Marshal()
 	if err != nil {
 		return fmt.Errorf("MarshalSessionError: Message='ImpossibleToMarshalSession: ID=%v Cause=%v'", s.ID, err)
@@ -169,7 +177,11 @@ func (s *PublicSession) Set() error {
 	if err != nil {
 		return fmt.Errorf("SetSessionError: Message='ImpossibleToCacheSession: ID=%v Cause=%v'", s.ID, err)
 	}
-	log.Infof("SessionStored[ID=%v TTL=%v ValueLen=%+v]", s.ID, ttl, len(sessionBytes))
+	log.Info("SessionStored",
+		logger.String("ID", s.ID),
+		logger.Int("TTL", ttl),
+		logger.Int("ValueLen", len(sessionBytes)),
+	)
 	return nil
 }
 
@@ -182,7 +194,10 @@ func (s *PublicSession) Get() error {
 	if err != nil {
 		return fmt.Errorf("data.GetSessionError: Message='ImpossibleToGetCachedSession: ID=%v Cause=%v'", s.ID, err.Error())
 	}
-	log.Debugf("SessionLoadedFromCache[ID=%v ValueLen=%d]", s.ID, len(sessionBytes))
+	log.Debug("SessionLoadedFromCache",
+		logger.String("ID", s.ID),
+		logger.Int("ValueLen", len(sessionBytes)),
+	)
 	err = s.UnmarshalBytes(sessionBytes)
 	if err != nil {
 		return fmt.Errorf("data.UnmarshalSessionError: Message='ImpossibleToUnmarshalSession: ID=%v Cause=%v'", s.ID, err.Error())

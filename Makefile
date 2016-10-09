@@ -11,9 +11,10 @@ COVERAGE_FILE   := $(NAME).coverage
 COVERAGE_HTML  	:= $(NAME).coverage.html
 PKG_COVERAGE   	:= $(NAME).pkg.coverage
 
-ETC_DIR := /etc
+ETC_DIR := ./etc
 CONF_DIR := $(ETC_DIR)/$(NAME)
-CONF := $(CONF_DIR)/$(NAME)
+CONF_TYPE := yaml
+CONF := $(CONF_DIR)/$(NAME).$(CONF_TYPE)
 #CONF := $(CONF_DIR)/$(NAME).conf
 #PID_FILE := /usr/local/var/run/$(NAME)_$(ENV).pid
 
@@ -60,6 +61,18 @@ install_deps:
 	go get github.com/bradfitz/gomemcache/memcache
 	go get github.com/gocql/gocql
 
+.PHONY: docker
+docker: build_linux
+	docker build --rm -t rjansen/cassandra $(ETC_DIR)/cassandra
+	docker build --rm -t rjansen/memcached $(ETC_DIR)/memcached
+	docker build --rm -t rjansen/redis $(ETC_DIR)/redis
+	docker build --rm -t rjansen/security $(ETC_DIR)/security
+
+	docker create -it -p 127.0.0.1:9042:9042 -p 127.0.0.1:9160:9160 --name cassandra rjansen/cassandra
+	docker create -it -p 127.0.0.1:11211:11211 --name memcached rjansen/memcached
+	docker create -it -p 127.0.0.1:6379:6379 --name redis rjansen/redis
+	docker create -it -p 127.0.0.1:8080:8080 --name security rjansen/security
+
 .PHONY: local
 local: 
 	@echo "Set enviroment to local"
@@ -98,6 +111,11 @@ check_conf:
 build:
 	qtc 
 	go build farm.e-pedion.com/repo/security
+
+.PHONY: build_linux
+build_linux:
+	GOARCH="amd64" GOOS="linux" go build -o $(CONF_DIR)/$(NAME) farm.e-pedion.com/repo/security 
+
 
 .PHONY: run
 #run: filter_conf check_conf build

@@ -6,64 +6,98 @@ import (
 	"fmt"
 	"github.com/spf13/viper"
 	path "path/filepath"
-	"time"
+	"strings"
+	"sync"
 )
 
 var (
+	once          sync.Once
 	configuration *Configuration
 )
 
 //Setup initializes the package
 func Setup() error {
 	var cfg string
-	flag.StringVar(&cfg, "cfg", "/etc/security/security.yaml", "Security configuration")
+	flag.StringVar(&cfg, "cfg", "./etc/security/security.yaml", "Security configuration")
 	flag.Parse()
-	viper.SetConfigName(path.Base(cfg)) // name of config file (without extension)
-	viper.SetConfigType(path.Ext(cfg))  // config type
+	configExt := path.Ext(cfg)
+	configName := strings.TrimSuffix(path.Base(cfg), configExt)
+	configType := configExt[1:]
+	configPath := path.Dir(cfg)
+	fmt.Printf("ViperSetup[Name=%v Type=%v Path=%v Cfg=%v]\n", configName, configType, configPath, cfg)
+	viper.SetConfigName(configName) // name of config file (without extension)
+	viper.SetConfigType(configType) // config type
+	viper.AddConfigPath(configPath) // optionally look for config in the working directory
 	//viper.AddConfigPath("/etc/appname/")  // path to look for the config file in
 	//viper.AddConfigPath("$HOME/.appname") // call multiple times to add many search paths
-	viper.AddConfigPath("." + path.Dir(cfg)) // optionally look for config in the working directory
-	err := viper.ReadInConfig()              // Find and read the config file
-	if err != nil {                          // Handle errors reading the config file
-		return fmt.Errorf("config.SetupErr[Message='%s']\n", err)
+	err := viper.ReadInConfig() // Find and read the config file
+	if err != nil {             // Handle errors reading the config file
+		return fmt.Errorf("config.SetupErr[Cfg=%v Message='%s']\n", cfg, err)
 	}
 	return nil
 }
 
 //Configuration holds all possible configurations structs
 type Configuration struct {
-	Version string
-	*HandlerConfig
-	*ProxyConfig
-	*CassandraConfig
-	*DBConfig
-	*SecurityConfig
-	*CacheConfig
-	*HTTPConfig
-	LoggerConfig *logger.Configuration
+	Version     string `mapstructure:"version"`
+	Environment string `mapstructure:"environment"`
+	//*DBConfig
+	//*CacheConfig
+	//*HTTPConfig
+	Cassandra CassandraConfig `mapstructure:"cassandra"`
+	Handler   HandlerConfig   `mapstructure:"handler"`
+	Proxy     ProxyConfig
+	Security  SecurityConfig
+	Logger    logger.Configuration `mapstructure:"logger"`
 }
 
-func (c *Configuration) String() string {
+func (c Configuration) String() string {
 	//return fmt.Sprintf("Configuration[Version=%v ProxyConfig=%v DBConfig=%v SecurityConfig=%v CacheConfig=%v LoggerConfig=%v]", c.Version, c.ProxyConfig, c.DBConfig, c.SecurityConfig, c.CacheConfig, c.LoggerConfig)
-	return fmt.Sprintf("Configuration[Version=%v LoggerConfig=%v CassandraConfig=%v]", c.Version, c.LoggerConfig, c.CassandraConfig)
+	return fmt.Sprintf("Configuration[Version=%v Environment=%v Logger=%v Handler=%v Cassandra=%v]", c.Version, c.Environment, c.Logger, c.Handler, c.Cassandra)
 }
 
 //Get returns the configuration struct
 func Get() *Configuration {
-	if configuration == nil {
-		configuration = &Configuration{}
-		configuration.Version = fmt.Sprintf("debug-%v", time.Now().UnixNano())
+	once.Do(func() {
 		/*
-				flag.StringVar(&configuration.Version, "version", fmt.Sprintf("transientbuild-%v", time.Now().UnixNano()), "Target bind address")
+			configuration.Version = fmt.Sprintf("debug-%v", time.Now().UnixNano())
+					flag.StringVar(&configuration.Version, "version", fmt.Sprintf("transientbuild-%v", time.Now().UnixNano()), "Target bind address")
 
-			configuration.HandlerConfig = BindHandlerConfiguration()
-			configuration.ProxyConfig = BindProxyConfiguration()
-			configuration.DBConfig = BindDBConfiguration()
-			configuration.CacheConfig = BindCacheConfiguration()
-			configuration.HTTPConfig = BindHTTPConfiguration()
+				configuration.HandlerConfig = BindHandlerConfiguration()
+				configuration.ProxyConfig = BindProxyConfiguration()
+				configuration.DBConfig = BindDBConfiguration()
+				configuration.CacheConfig = BindCacheConfiguration()
+				configuration.HTTPConfig = BindHTTPConfiguration()
 		*/
-		configuration.LoggerConfig = GetLoggerConfiguration()
-		configuration.CassandraConfig = GetCassandraConfiguration()
-	}
+		configuration = &Configuration{}
+		if err := viper.Unmarshal(configuration); err != nil {
+			panic(err)
+		}
+		/*
+			loggerConfig := &logger.Configuration{}
+			fmt.Printf("Viper.Logger=%+v\n", viper.Get("logger"))
+			if err := viper.Sub("logger").Unmarshal(loggerConfig); err != nil {
+				panic(err)
+			}
+			fmt.Printf("GetLoggerConfig=%v\n", loggerConfig)
+			configuration.Logger = loggerConfig
+
+			cassandraConfig := &CassandraConfig{}
+			fmt.Printf("Viper.Cassandra=%+v\n", viper.Get("cassandra"))
+			if err := viper.Sub("cassandra").Unmarshal(cassandraConfig); err != nil {
+				panic(err)
+			}
+			fmt.Printf("GetCassandraConfig=%v\n", cassandraConfig)
+			configuration.Cassandra = cassandraConfig
+
+			handlerConfig := &HandlerConfig{}
+			fmt.Printf("Viper.Handler=%+v\n", viper.Get("handler"))
+			if err := viper.Sub("handler").Unmarshal(handlerConfig); err != nil {
+				panic(err)
+			}
+			configuration.Handler = handlerConfig
+			fmt.Printf("GetHandlerConfig=%v\n", handlerConfig)
+		*/
+	})
 	return configuration
 }

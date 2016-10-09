@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	log            = logger.GetLogger("util")
+	log            = logger.GetLogger()
 	certPool       *x509.CertPool
 	securityConfig = config.BindSecurityConfiguration()
 )
@@ -41,7 +41,9 @@ func GetCertPool() (*x509.CertPool, error) {
 		if err != nil {
 			return nil, err
 		}
-		log.Infof("AppendCustomTLSCertificate: CertificatePath=%v", securityConfig.CustomSSLCertificatePath)
+		log.Info("AppendCustomTLSCertificate",
+			logger.String("CertificatePath", securityConfig.CustomSSLCertificatePath),
+		)
 		certPool = x509.NewCertPool()
 		ok := certPool.AppendCertsFromPEM(certData)
 		if !ok {

@@ -6,7 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"farm.e-pedion.com/repo/config"
+	"farm.e-pedion.com/repo/logger"
+	"farm.e-pedion.com/repo/security/config"
 	"github.com/valyala/fasthttp"
 )
 
@@ -64,12 +65,19 @@ func (handler *CookieAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *h
 	//}
 	cookie, err := r.Cookie(handler.SecurityConfig.CookieName)
 	if err == nil {
-		log.Infof("GotCookieValueFromRequest[Name=%v Value=%s]", handler.SecurityConfig.CookieName, cookie.Value)
+		log.Info("GotCookieValueFromRequest",
+			logger.String("Name", handler.SecurityConfig.CookieName),
+			logger.String("Value", cookie.Value),
+		)
 		jwtSessionToken := []byte(cookie.Value)
 		session, err := ReadSession(jwtSessionToken)
-		log.Infof("GotIdentitySession[Session=%v]", session)
+		log.Info("GotIdentitySession",
+			logger.Struct("Session", session),
+		)
 		if err != nil {
-			log.Errorf("ReadSessionError[Message='%v']", err)
+			log.Error("ReadSessionError",
+				logger.Error(err),
+			)
 			serveUnauthorizedResult()
 		} else {
 			handler.AuthenticatableHandler.SetSession(session)
@@ -78,7 +86,10 @@ func (handler *CookieAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *h
 			handler.AuthenticatableHandler.ServeHTTP(w, r)
 		}
 	} else {
-		log.Infof("ParseCookieError[Name=%v Message='%v']", handler.SecurityConfig.CookieName, err)
+		log.Info("ParseCookieError",
+			logger.String("Name", handler.SecurityConfig.CookieName),
+			logger.Error(err),
+		)
 		serveUnauthorizedResult()
 	}
 }
@@ -102,11 +113,18 @@ func (handler *CookieAuthenticatedHandler) HandleRequest(ctx *fasthttp.RequestCt
 	var cookie fasthttp.Cookie
 	err := cookie.ParseBytes(cookieValue)
 	if err == nil {
-		log.Infof("GotCookieValueFromRequest[Name=%v Value=%s]", handler.SecurityConfig.CookieName, cookie.String())
+		log.Info("GotCookieValueFromRequest",
+			logger.String("Name", handler.SecurityConfig.CookieName),
+			logger.String("Value", cookie.String()),
+		)
 		session, err := ReadSession(cookie.Value())
-		log.Infof("GotIdentitySession[Session=%v]", session)
+		log.Info("GotIdentitySession",
+			logger.Struct("Session", session),
+		)
 		if err != nil {
-			log.Errorf("ReadSessionError[Message=%v]", err)
+			log.Error("ReadSessionError",
+				logger.Error(err),
+			)
 			serveUnauthorizedResult()
 		} else {
 			handler.AuthenticatableHandler.SetSession(session)
@@ -115,7 +133,10 @@ func (handler *CookieAuthenticatedHandler) HandleRequest(ctx *fasthttp.RequestCt
 			handler.AuthenticatableHandler.HandleRequest(ctx)
 		}
 	} else {
-		log.Infof("ParseCookieError[Name=%v Message='%v']", handler.SecurityConfig.CookieName, err)
+		log.Info("ParseCookieError",
+			logger.String("Name", handler.SecurityConfig.CookieName),
+			logger.Error(err),
+		)
 		serveUnauthorizedResult()
 	}
 }
@@ -138,14 +159,20 @@ func (handler *HeaderAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *h
 	//    w.WriteHeader(http.StatusForbidden)
 	//}
 	authorization := r.Header.Get("Authorization")
-	log.Infof("GotHeaderValueFromRequest[Authorization=%s]", authorization)
+	log.Info("GotHeaderValueFromRequest",
+		logger.String("Authorization", authorization),
+	)
 	authorizationFields := strings.Fields(authorization)
 	if len(authorizationFields) > 1 {
 		jwtSessionToken := []byte(authorizationFields[1])
 		session, err := ReadSession(jwtSessionToken)
-		log.Infof("GotIdentitySession[Session=%v]", session)
+		log.Info("GotIdentitySession",
+			logger.Struct("Session", session),
+		)
 		if err != nil {
-			log.Errorf("ReadSessionError[Message='%v']", err)
+			log.Error("ReadSessionError",
+				logger.Error(err),
+			)
 			serveUnauthorizedResult(w, r)
 		} else {
 			handler.AuthenticatableHandler.SetSession(session)
@@ -168,15 +195,21 @@ func (handler *HeaderAuthenticatedHandler) HandleRequest(ctx *fasthttp.RequestCt
 	//    w.WriteHeader(http.StatusForbidden)
 	//}
 	authorization := ctx.Request.Header.Peek("Authorization")
-	log.Infof("GotHeaderValueFromRequest[Authorization=%q]", authorization)
+	log.Info("GotHeaderValueFromRequest",
+		logger.Bytes("Authorization", authorization),
+	)
 
 	authorizationFields := bytes.Fields(authorization)
 	if len(authorizationFields) > 1 {
 		jwtToken := authorizationFields[1]
 		session, err := ReadSession(jwtToken)
-		log.Infof("GotIdentitySession[Session=%v]", session)
+		log.Info("GotIdentitySession",
+			logger.Struct("Session", session),
+		)
 		if err != nil {
-			log.Errorf("ReadSessionError[Message='%v']", err)
+			log.Error("ReadSessionError",
+				logger.Error(err),
+			)
 			serveUnauthorizedResult()
 		} else {
 			handler.AuthenticatableHandler.SetSession(session)

@@ -10,7 +10,7 @@ import (
 
 //pool is a variable to hold the Cassandra Pool
 var (
-	log  = logger.GetLogger("database")
+	log  = logger.GetLogger()
 	pool *CassandraPool
 )
 
@@ -36,7 +36,9 @@ func Setup(config *config.CassandraConfig) error {
 		MaxCons:    10,
 		Datasource: datasource,
 	}
-	log.Infof("ConfigCassandraDriver[Pool=%+v]", pool)
+	log.Info("ConfigCassandraDriver",
+		logger.String("Pool", pool.String()),
+	)
 	cluster := gocql.NewCluster(pool.Datasource.URL)
 	cluster.ProtoVersion = 4
 	cluster.Keyspace = pool.Datasource.Keyspace
@@ -50,7 +52,9 @@ func Setup(config *config.CassandraConfig) error {
 		return fmt.Errorf("CreateSessionError[Message=%v]", err.Error())
 	}
 	pool.Session = session
-	log.Infof("CassandraDriverConfigured[Config=%+v]", config)
+	log.Info("CassandraDriverConfigured",
+		logger.String("Config", config.String()),
+	)
 	return nil
 }
 
@@ -59,7 +63,9 @@ func Close() error {
 	if pool == nil || pool.Session == nil {
 		return errors.New("SetupMustCalled: Message='You must call Setup with a CassandraBConfig before get a Cassandrapool reference')")
 	}
-	log.Infof("CloseCassandraSession: CassandraPool=%+v", pool)
+	log.Info("CloseCassandraSession",
+		logger.String("CassandraPool", pool.String()),
+	)
 	pool.Session.Close()
 	return nil
 }
@@ -72,6 +78,10 @@ type CassandraPool struct {
 	Session *gocql.Session
 }
 
+func (c CassandraPool) String() string {
+	return fmt.Sprintf("CassandraPool MinCons=%v MaxCons=%v", c.MinCons, c.MaxCons)
+}
+
 //GetConnection creates and returns a sql.DB reference
 func (c *CassandraPool) GetConnection() (*gocql.Session, error) {
 	if c == nil || c.Session == nil {
@@ -80,7 +90,9 @@ func (c *CassandraPool) GetConnection() (*gocql.Session, error) {
 	if c.Session.Closed() {
 		return nil, errors.New("SessionIdClosed: Message='The Cassandra session is closed'")
 	}
-	log.Debugf("GetSession: CassandraPool=%+v", c)
+	log.Debug("GetSession",
+		logger.String("CassandraPool", c.String()),
+	)
 	return c.Session, nil
 }
 

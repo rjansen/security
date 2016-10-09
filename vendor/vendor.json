@@ -15,10 +15,10 @@
 			"revisionTime": "2016-06-13T00:45:20Z"
 		},
 		{
-			"checksumSHA1": "+XMUZ3Jjya5mozBb1MQBYo1srho=",
+			"checksumSHA1": "ANk87zEo8N0QEbV7G3HSYQsuAKY=",
 			"path": "farm.e-pedion.com/repo/logger",
-			"revision": "9bb9182167c9a8b89765d0f26b1a3536db9631e0",
-			"revisionTime": "2016-10-03T09:49:47Z"
+			"revision": "72e5021635d20eb1d992d72f2277991c839bf8cf",
+			"revisionTime": "2016-10-09T05:23:07Z"
 		},
 		{
 			"checksumSHA1": "xMFUuPv/35b7LGdQ450dUvNKxI4=",
@@ -50,6 +50,12 @@
 			"path": "github.com/Sirupsen/logrus",
 			"revision": "89f2ed1ef81386af9e879d4cd9429be386a76130",
 			"revisionTime": "2016-10-03T07:22:44Z"
+		},
+		{
+			"checksumSHA1": "63vHVSiItUfflK3tUwe6mrI84BQ=",
+			"path": "github.com/Sirupsen/logrus/hooks/syslog",
+			"revision": "3ec0642a7fb6488f65b06f9040adc67e3990296a",
+			"revisionTime": "2016-08-29T20:23:21Z"
 		},
 		{
 			"checksumSHA1": "fNAC4qgZDqF3kxq74/yyk3PWdy8=",
