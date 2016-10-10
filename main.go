@@ -4,7 +4,7 @@ import (
 	//"bytes"
 	//"farm.e-pedion.com/repo/cache"
 	"farm.e-pedion.com/repo/logger"
-	//"farm.e-pedion.com/repo/security/client/cassandra"
+	"farm.e-pedion.com/repo/security/client/cassandra"
 	//"farm.e-pedion.com/repo/security/client/http"
 	"farm.e-pedion.com/repo/security/config"
 	"farm.e-pedion.com/repo/security/handler"
@@ -34,9 +34,10 @@ func main() {
 		log.Panic("HandlerSetupErr", logger.Error(err))
 	}
 
-	// if err = cassandra.Setup(configuration.Cassandra); err != nil {
-	// 	log.Panic("CassandraClientSetupErr", logger.Error(err)))
-	// }
+	if err = cassandra.Setup(configuration.Cassandra); err != nil {
+		log.Panic("CassandraClientSetupErr", logger.Error(err))
+	}
+
 	loadTestHandler := handler.NewLoadTestHandler()
 
 	httpHandler := func(ctx *fasthttp.RequestCtx) {

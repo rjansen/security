@@ -3,6 +3,8 @@ package handler
 import (
 	"bytes"
 	"farm.e-pedion.com/repo/logger"
+	"farm.e-pedion.com/repo/security/client/cassandra"
+	"farm.e-pedion.com/repo/security/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/valyala/fasthttp"
 	"strconv"
@@ -10,7 +12,21 @@ import (
 )
 
 func BenchmarkGetTestHandler(b *testing.B) {
-	log = logger.NewLoggerByConfig(logger.Configuration{Level: logger.ERROR, Out: logger.DISCARD})
+	logSetupErr := logger.Setup(logger.Configuration{
+		Provider: logger.LOGRUS,
+		Level:    logger.DEBUG,
+		Out:      logger.Out("./security.bench.log"),
+	})
+	if logSetupErr != nil {
+		panic(logSetupErr)
+	}
+	log = logger.GetLogger()
+	assert.Nil(b, cassandra.Setup(config.CassandraConfig{
+		URL:      "127.0.0.1:9042",
+		Keyspace: "fivecolors",
+		Username: "fivecolors",
+		Password: "fivecolors",
+	}))
 	testHandler := NewLoadTestHandler()
 
 	var times int
@@ -20,7 +36,8 @@ func BenchmarkGetTestHandler(b *testing.B) {
 		var req fasthttp.Request
 		for pb.Next() {
 			times++
-			username := "user" + strconv.Itoa(times)
+			// username := "user" + strconv.Itoa(times)
+			username := "darkside"
 			req.SetRequestURI("http://test/" + username)
 			ctx.Init(&req, nil, nil)
 

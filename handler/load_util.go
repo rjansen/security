@@ -10,6 +10,7 @@ import (
 
 	//"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/logger"
+	"farm.e-pedion.com/repo/security/client/cassandra"
 	"farm.e-pedion.com/repo/security/data"
 
 	//"farm.e-pedion.com/repo/security/asset"
@@ -18,7 +19,9 @@ import (
 
 func NewLoadTestHandler() *LoadTestHandler {
 	return &LoadTestHandler{
-		Get:  &LoadGetTestHandler{},
+		Get: &LoadGetTestHandler{
+			client: cassandra.NewClient(),
+		},
 		Post: &LoadPostTestHandler{},
 	}
 }
@@ -29,6 +32,7 @@ type LoadTestHandler struct {
 }
 
 type LoadGetTestHandler struct {
+	client cassandra.Client
 }
 
 func (h *LoadGetTestHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
@@ -43,16 +47,20 @@ func (h *LoadGetTestHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 	identifier := string(ctx.URI().LastPathSegment())
 
 	login := data.Login{
+		Client:   h.client,
 		Username: identifier,
 		Name:     "Load Get TestHandler das Couves",
 		Password: "dummypwd",
 		Roles:    []string{"role1", "role2", "role3", "roleN"},
 	}
-	// if err := login.Read(); err != nil {
-	// 	log.Errorf("ReadLoginError[Username=%v Message='%v']", username, err)
-	// 	ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
-	// 	return
-	// }
+	if err := login.Read(); err != nil {
+		log.Error("ReadLoginError ",
+			logger.String("Username", identifier),
+			logger.Error(err),
+		)
+		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
+		return
+	}
 
 	err := json.NewEncoder(ctx).Encode(login)
 	if err != nil {

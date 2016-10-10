@@ -8,7 +8,7 @@ import (
 )
 
 func TestGetTestHandlerSuccess(t *testing.T) {
-	log = logger.NewLoggerByConfig(logger.Configuration{})
+	log = logger.NewLoggerByConfig(logger.Configuration{Provider: logger.LOGRUS})
 	testHandler := NewLoadTestHandler()
 	var ctx fasthttp.RequestCtx
 	var req fasthttp.Request

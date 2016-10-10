@@ -2,15 +2,15 @@ package cassandra
 
 import (
 	"errors"
-	"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/logger"
+	"farm.e-pedion.com/repo/security/config"
 	"fmt"
 	"github.com/gocql/gocql"
 )
 
 //pool is a variable to hold the Cassandra Pool
 var (
-	log  = logger.GetLogger()
+	log  logger.Logger
 	pool *CassandraPool
 )
 
@@ -25,6 +25,7 @@ func GetPool() (*CassandraPool, error) {
 
 //Setup configures a poll for database connections
 func Setup(config config.CassandraConfig) error {
+	log = logger.GetLogger()
 	datasource := Datasource{
 		Username: config.Username,
 		Password: config.Password,
