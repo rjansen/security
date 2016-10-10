@@ -18,8 +18,13 @@ import (
 )
 
 var (
-	log = logger.GetLogger()
+	log logger.Logger
 )
+
+func Setup(logger logger.Logger) error {
+	log = logger
+	return nil
+}
 
 type FastHttpHandler interface {
 	HandleRequest(ctx *fasthttp.RequestCtx)

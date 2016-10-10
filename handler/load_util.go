@@ -36,7 +36,10 @@ func (h *LoadGetTestHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 		ctx.Error("405 - MethodNotAllowed", fasthttp.StatusMethodNotAllowed)
 		return
 	}
-	//log.Debug("LoadGetTestHandler", logger.String("URI", ctx.URI()))
+	log.Info("LoadGetTestHandler.Request",
+		logger.Bytes("Method", ctx.Method()),
+		logger.String("URI", ctx.URI().String()),
+	)
 	identifier := string(ctx.URI().LastPathSegment())
 
 	login := data.Login{
@@ -63,13 +66,10 @@ func (h *LoadGetTestHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 
 	ctx.SetContentType("application/json; charset=utf-8")
 	ctx.SetStatusCode(fasthttp.StatusOK)
-	// bytesWritten, err := ctx.Write(jsonData)
-	// if err != nil {
-	// 	log.Errorf("WriteResponseError[Username[%v] Error[%v]", username, err)
-	// } else {
-	// 	log.Infof("ResponseWritten: Username[%v] Bytes[%v]", username, bytesWritten)
-	// }
-
+	log.Info("LoadGetTestHandler.Response",
+		logger.String("Content-Type", "application/json; charset=utf-8"),
+		logger.Int("Status", fasthttp.StatusOK),
+	)
 }
 
 type LoadPostTestHandler struct {
@@ -80,7 +80,10 @@ func (h *LoadPostTestHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 		ctx.Error("405 - MethodNotAllowed", fasthttp.StatusMethodNotAllowed)
 		return
 	}
-	//log.Debug("LoadPostTestHandler", logger.String("URI", ctx.URI()))
+	log.Debug("LoadPostTestHandler.Request",
+		logger.Bytes("Method", ctx.Method()),
+		logger.String("URI", ctx.URI().String()),
+	)
 	var login data.Login
 	err := json.Unmarshal(ctx.PostBody(), &login)
 	if err != nil {
@@ -111,11 +114,8 @@ func (h *LoadPostTestHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 
 	ctx.SetContentType("application/json; charset=utf-8")
 	ctx.SetStatusCode(fasthttp.StatusCreated)
-	// bytesWritten, err := ctx.Write(jsonData)
-	// if err != nil {
-	// 	log.Errorf("WriteResponseError[Username[%v] Error[%v]", username, err)
-	// } else {
-	// 	log.Infof("ResponseWritten: Username[%v] Bytes[%v]", username, bytesWritten)
-	// }
-
+	log.Debug("LoadPostTestHandler.Response",
+		logger.String("Content-Type", "application/json; charset=utf-8"),
+		logger.Int("Status", fasthttp.StatusCreated),
+	)
 }

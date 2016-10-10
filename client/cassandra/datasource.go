@@ -24,7 +24,7 @@ func GetPool() (*CassandraPool, error) {
 }
 
 //Setup configures a poll for database connections
-func Setup(config *config.CassandraConfig) error {
+func Setup(config config.CassandraConfig) error {
 	datasource := Datasource{
 		Username: config.Username,
 		Password: config.Password,

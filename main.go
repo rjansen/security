@@ -3,7 +3,7 @@ package main
 import (
 	//"bytes"
 	//"farm.e-pedion.com/repo/cache"
-	//"farm.e-pedion.com/repo/logger"
+	"farm.e-pedion.com/repo/logger"
 	//"farm.e-pedion.com/repo/security/client/cassandra"
 	//"farm.e-pedion.com/repo/security/client/http"
 	"farm.e-pedion.com/repo/security/config"
@@ -16,12 +16,27 @@ import (
 )
 
 func main() {
-	if err := config.Setup(); err != nil {
+	var err error
+	if err = config.Setup(); err != nil {
 		panic(err)
 	}
 	configuration := config.Get()
-	fmt.Printf("ConfigLoaded[%s]\n", configuration.String())
+	fmt.Printf("Security.Set[%s]\n", configuration.String())
 
+	if err = logger.Setup(configuration.Logger); err != nil {
+		panic(err)
+	}
+
+	log := logger.GetLogger()
+	log.Info("Security.Set", logger.Struct("config", configuration))
+
+	if err = handler.Setup(log); err != nil {
+		log.Panic("HandlerSetupErr", logger.Error(err))
+	}
+
+	// if err = cassandra.Setup(configuration.Cassandra); err != nil {
+	// 	log.Panic("CassandraClientSetupErr", logger.Error(err)))
+	// }
 	loadTestHandler := handler.NewLoadTestHandler()
 
 	httpHandler := func(ctx *fasthttp.RequestCtx) {
@@ -38,7 +53,7 @@ func main() {
 	}
 
 	fmt.Printf("SecurityStarting[Version=%s BindAddress=%s]\n", configuration.Version, configuration.Handler.BindAddress)
-	err := fasthttp.ListenAndServe(configuration.Handler.BindAddress, httpHandler)
+	err = fasthttp.ListenAndServe(configuration.Handler.BindAddress, httpHandler)
 	if err != nil {
 		fmt.Printf("SecurityStartErr[Version=%s BindAddress=%s Message='%+v']", configuration.Version, configuration.Handler.BindAddress, err)
 		panic(err)

@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	log = logger.GetLogger("proxy")
+	log = logger.GetLogger()
 	//Create a config way to strip paths while proxy request
 	pathRegex, _ = regexp.Compile("\\/web|\\/api")
 )
@@ -52,9 +52,16 @@ func (a *ApiReverseProxy) HandleRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 	req.Header.Set("Authorization", fmt.Sprintf("%v: %v", a.SecurityConfig.CookieName, string(privateSession.Token)))
-	log.Debugf("HeaderAuthorizationFoward[%v=%v Requested=%v Foward=%v%v]", a.SecurityConfig.CookieName, privateSession.ID, requestedPath, a.ProxyURL, string(req.RequestURI()))
+	log.Debug("HeaderAuthorizationFoward",
+		logger.String(a.SecurityConfig.CookieName, privateSession.ID),
+		logger.String("Requested", a.ProxyURL.String()),
+		logger.Bytes("Foward", req.RequestURI()),
+	)
 	if err := a.proxyClient.Do(req, resp); err != nil {
-		log.Errorf("ApiProxyHandleRequestError[Path=%v Message='%+v']", requestedPath, err)
+		log.Error("ApiProxyHandleRequestError",
+			logger.String("Path", requestedPath),
+			logger.Error(err),
+		)
 	}
 }
 
@@ -70,7 +77,11 @@ func (a *ApiReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	//r.SetBasicAuth(a.session.Username, a.session.ID)
 	r.Header.Set("Authorization", fmt.Sprintf("%v: %v", a.SecurityConfig.CookieName, string(privateSession.Token)))
-	log.Debugf("HeaderAuthorizationFoward[%v=%v Requested=%v Foward=%v%v]", a.SecurityConfig.CookieName, privateSession.ID, requestedPath, a.ProxyURL, r.URL.Path)
+	log.Debug("HeaderAuthorizationFoward",
+		logger.String(a.SecurityConfig.CookieName, privateSession.ID),
+		logger.String("Requested", requestedPath),
+		logger.String("Foward", a.ProxyURL.String()+r.URL.Path),
+	)
 	a.reverseProxy.ServeHTTP(w, r)
 }
 
@@ -116,9 +127,16 @@ func (a *WebReverseProxy) HandleRequest(ctx *fasthttp.RequestCtx) {
 
 	req.Header.SetCookie(a.SecurityConfig.CookieName, cookie.String())
 	//req.Header.Set(fmt.Sprintf("X-%v", a.SecurityConfig.CookieName), string(privateSession.Token))
-	log.Debugf("CookieAuthFoward[%v=%v Requested=%v Foward=%v%v]", a.SecurityConfig.CookieName, privateSession.ID, requestedPath, a.ProxyURL, string(req.RequestURI()))
+	log.Debug("CookieAuthFoward",
+		logger.String(a.SecurityConfig.CookieName, privateSession.ID),
+		logger.String("Requested", requestedPath),
+		logger.Bytes("Foward", append([]byte(a.ProxyURL.String()), 'c')),
+	)
 	if err := a.proxyClient.Do(req, resp); err != nil {
-		log.Errorf("ApiProxyHandleRequestError[Path=%v Message='%+v']", requestedPath, err)
+		log.Error("ApiProxyHandleRequestError",
+			logger.String("Path", requestedPath),
+			logger.Error(err),
+		)
 	}
 }
 
@@ -144,6 +162,10 @@ func (a *WebReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(fmt.Sprintf("X-%v", a.SecurityConfig.CookieName), string(privateSession.Token))
 
 	//Creates a JWT to proxy the request
-	log.Debugf("CookieAuthFoward[%v=%v Requested=%v Foward=%v%v]", a.SecurityConfig.CookieName, privateSession.ID, requestedPath, a.ProxyURL, r.URL.Path)
+	log.Debug("CookieAuthFoward",
+		logger.String(a.SecurityConfig.CookieName, privateSession.ID),
+		logger.String("Requested", requestedPath),
+		logger.String("Foward", a.ProxyURL.String()+r.URL.Path),
+	)
 	a.reverseProxy.ServeHTTP(w, r)
 }

@@ -1,0 +1,18 @@
+version: "0.0.1-test"
+environment: "test"
+
+logger:
+    provider: "logrus"
+    level: "error"
+    format: "text"
+    out: "./security.test.log"
+
+cassandra:
+    url: "127.0.0.1:9042"
+    keyspace: "fivecolors_test"
+    username: "fivecolors_test"
+    password: "fivecolors_test"
+
+handler:
+    version: "1.0"
+    bind: ":6080"

@@ -8,3 +8,5 @@
 tags
 /security
 /vendor/*/
+*.pprof
+*.test

@@ -3,7 +3,7 @@ environment: "local"
 
 logger:
     provider: "logrus"
-    level: 13
+    level: "debug"
     format: "text_color"
     out: "./security.local.log"
 

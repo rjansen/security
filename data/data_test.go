@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"farm.e-pedion.com/repo/cache"
+	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/security/client/cassandra"
 	"farm.e-pedion.com/repo/security/identity"
 	"time"
@@ -218,6 +219,7 @@ func TestUnmarshalBytesLoginSuccess(t *testing.T) {
 }
 
 func TestSetPublicSessionSuccess(t *testing.T) {
+	log = logger.NewLoggerByConfig(logger.Configuration{Provider: logger.LOGRUS})
 	mockCacheClient := cache.NewMockClient()
 	ttl := 1 * time.Hour
 	session := &PublicSession{
@@ -236,6 +238,7 @@ func TestSetPublicSessionSuccess(t *testing.T) {
 }
 
 func BenchmarkSetPublicSessionSuccess(b *testing.B) {
+	log = logger.NewLoggerByConfig(logger.Configuration{Provider: logger.LOGRUS})
 	mockCacheClient := cache.NewMockClient()
 	ttl := 1 * time.Hour
 	for n := 0; n < b.N; n++ {
