@@ -47,20 +47,20 @@ func (h *LoadGetTestHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 	identifier := string(ctx.URI().LastPathSegment())
 
 	login := data.Login{
-		Client:   h.client,
+		// Client:   h.client,
 		Username: identifier,
 		Name:     "Load Get TestHandler das Couves",
 		Password: "dummypwd",
 		Roles:    []string{"role1", "role2", "role3", "roleN"},
 	}
-	if err := login.Read(); err != nil {
-		log.Error("ReadLoginError ",
-			logger.String("Username", identifier),
-			logger.Error(err),
-		)
-		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
-		return
-	}
+	// if err := login.Read(); err != nil {
+	// 	log.Error("ReadLoginError ",
+	// 		logger.String("Username", identifier),
+	// 		logger.Error(err),
+	// 	)
+	// 	ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
+	// 	return
+	// }
 
 	err := json.NewEncoder(ctx).Encode(login)
 	if err != nil {
