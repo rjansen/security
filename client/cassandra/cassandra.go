@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+var (
+	NotFoundErr = gocql.ErrNotFound
+)
+
 type dbObject struct {
 	//session is a transient pointer to database connection
 	session *gocql.Session

@@ -286,8 +286,10 @@ $(NAME).pid: build
 up_test: $(NAME).pid
 
 .PHONY: down_test
-down_test: $(NAME).pid
-	kill `cat $<` && rm $<
+#down_test: $(NAME).pid
+down_test:
+	@#kill `cat $<` && rm $<
+	kill `cat $(NAME).pid` && rm $(NAME).pid
 
 .PHONY: wrk
 wrk:

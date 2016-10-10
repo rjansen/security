@@ -28,6 +28,8 @@ var (
 	jwtCrypto      = crypto.SigningMethodHS512
 	proxyConfig    = config.BindProxyConfiguration()
 	securityConfig = config.BindSecurityConfiguration()
+	//NotFoundErr is the error that returns when a read one dont match any record
+	NotFoundErr = cassandra.NotFoundErr
 )
 
 //Authenticator is the data struct of the security authenticato configuration
