@@ -80,7 +80,7 @@ func (h StatusCode) Int() int {
 type Request interface {
 	Method() Method
 	URL() string
-	Headers() map[string]interface{}
+	Headers() map[string]string
 	ContentType() ContentType
 	ContentLength() int
 	Body() []byte
@@ -88,7 +88,7 @@ type Request interface {
 
 //Response represents an http response
 type Response interface {
-	Headers() map[string]interface{}
+	Headers() map[string]string
 	ContentType() ContentType
 	ContentLength() int
 	Body() []byte
@@ -97,11 +97,11 @@ type Response interface {
 
 //Client provides an interface for http actions
 type Client interface {
-	Request(method Method, url string, body []byte, headers map[string]interface{}) (Response, error)
-	HEAD(url string, headers map[string]interface{}) (Response, error)
-	GET(url string, headers map[string]interface{}) (Response, error)
-	POST(url string, body []byte, headers map[string]interface{}) (Response, error)
-	PUT(url string, body []byte, headers map[string]interface{}) (Response, error)
-	DELETE(url string, body []byte, headers map[string]interface{}) (Response, error)
+	Request(method Method, url string, body []byte, headers map[string]string) (Response, error)
+	HEAD(url string, headers map[string]string) (Response, error)
+	GET(url string, headers map[string]string) (Response, error)
+	POST(url string, body []byte, headers map[string]string) (Response, error)
+	PUT(url string, body []byte, headers map[string]string) (Response, error)
+	DELETE(url string, body []byte, headers map[string]string) (Response, error)
 	Close() error
 }

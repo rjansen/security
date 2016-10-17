@@ -8,7 +8,7 @@ import (
 type FastHTTPRequest struct {
 	method        Method
 	url           string
-	headers       map[string]interface{}
+	headers       map[string]string
 	contentType   ContentType
 	contentLength int
 	body          []byte
@@ -22,7 +22,7 @@ func (r *FastHTTPRequest) URL() string {
 	return r.url
 }
 
-func (r *FastHTTPRequest) Headers() map[string]interface{} {
+func (r *FastHTTPRequest) Headers() map[string]string {
 	return r.headers
 }
 
@@ -40,7 +40,7 @@ func (r *FastHTTPRequest) Body() []byte {
 
 type FastHTTPResponse struct {
 	statusCode    int
-	headers       map[string]interface{}
+	headers       map[string]string
 	contentType   ContentType
 	contentLength int
 	body          []byte
@@ -50,7 +50,7 @@ func (r *FastHTTPResponse) StatusCode() int {
 	return r.statusCode
 }
 
-func (r *FastHTTPResponse) Headers() map[string]interface{} {
+func (r *FastHTTPResponse) Headers() map[string]string {
 	return r.headers
 }
 
@@ -87,10 +87,13 @@ func (c *FastHTTPClient) do(request Request) (Response, error) {
 	if request.Method() != GET && request.Method() != HEAD && bodyLen > 0 {
 		req.SetBody(request.Body())
 	}
+	for k, v := range request.Headers() {
+		req.Header.Set(k, v)
+	}
 	if err := c.client.DoTimeout(req, res, requestTimeout); err != nil {
 		return nil, err
 	}
-	responseHeaders := make(map[string]interface{})
+	responseHeaders := make(map[string]string)
 	res.Header.VisitAll(func(key []byte, value []byte) {
 		responseHeaders[string(key)] = string(value)
 	})
@@ -123,7 +126,7 @@ func (c *FastHTTPClient) release(req *fasthttp.Request, res *fasthttp.Response) 
 	fasthttp.ReleaseResponse(res)
 }
 
-func (c FastHTTPClient) Request(method Method, url string, body []byte, headers map[string]interface{}) (Response, error) {
+func (c FastHTTPClient) Request(method Method, url string, body []byte, headers map[string]string) (Response, error) {
 	httpRequest := &FastHTTPRequest{
 		method:  method,
 		url:     url,
@@ -133,7 +136,7 @@ func (c FastHTTPClient) Request(method Method, url string, body []byte, headers 
 	return c.do(httpRequest)
 }
 
-func (c *FastHTTPClient) HEAD(url string, headers map[string]interface{}) (Response, error) {
+func (c *FastHTTPClient) HEAD(url string, headers map[string]string) (Response, error) {
 	httpRequest := &FastHTTPRequest{
 		method:        HEAD,
 		url:           url,
@@ -143,7 +146,7 @@ func (c *FastHTTPClient) HEAD(url string, headers map[string]interface{}) (Respo
 	return c.do(httpRequest)
 }
 
-func (c FastHTTPClient) GET(url string, headers map[string]interface{}) (Response, error) {
+func (c FastHTTPClient) GET(url string, headers map[string]string) (Response, error) {
 	httpRequest := &FastHTTPRequest{
 		method:        GET,
 		url:           url,
@@ -153,7 +156,7 @@ func (c FastHTTPClient) GET(url string, headers map[string]interface{}) (Respons
 	return c.do(httpRequest)
 }
 
-func (c FastHTTPClient) POST(url string, body []byte, headers map[string]interface{}) (Response, error) {
+func (c FastHTTPClient) POST(url string, body []byte, headers map[string]string) (Response, error) {
 	httpRequest := &FastHTTPRequest{
 		method:  POST,
 		url:     url,
@@ -163,7 +166,7 @@ func (c FastHTTPClient) POST(url string, body []byte, headers map[string]interfa
 	return c.do(httpRequest)
 }
 
-func (c FastHTTPClient) PUT(url string, body []byte, headers map[string]interface{}) (Response, error) {
+func (c FastHTTPClient) PUT(url string, body []byte, headers map[string]string) (Response, error) {
 	httpRequest := &FastHTTPRequest{
 		method:  PUT,
 		url:     url,
@@ -173,7 +176,7 @@ func (c FastHTTPClient) PUT(url string, body []byte, headers map[string]interfac
 	return c.do(httpRequest)
 }
 
-func (c FastHTTPClient) DELETE(url string, body []byte, headers map[string]interface{}) (Response, error) {
+func (c FastHTTPClient) DELETE(url string, body []byte, headers map[string]string) (Response, error) {
 	httpRequest := &FastHTTPRequest{
 		method:  DELETE,
 		url:     url,

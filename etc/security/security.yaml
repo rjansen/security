@@ -38,8 +38,8 @@ proxy:
     web_url: "http://127.0.0.1:3000"
     #login_url: "https://moon.e-pedion.com:8443/fivecolors/auth/login"
     login_url: "http://localhost:7080/auth/login"
-    use_login_callback: false
-    login_callback_url: "http://127.0.0.1:4000/player"
+    use_login_callback: true
+    login_callback_url: "http://127.0.0.1:4000/player/"
     #redirect_url: "https://moon.e-pedion.com:8443/fivecolors/web"
     redirect_url: "http://localhost:7080/web/#/inventory"
     form_uri: "/auth/login/"

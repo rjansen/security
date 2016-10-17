@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/security/client/cassandra"
 	"farm.e-pedion.com/repo/security/client/http"
 	"farm.e-pedion.com/repo/security/identity"
 	"farm.e-pedion.com/repo/security/util"
@@ -103,15 +102,15 @@ func loginCallback(cookieName string, loginCallbackURL string, publicSession *Pu
 	if publicSession == nil || publicSession.PrivateSession == nil {
 		return errors.New("InvalidRequiredParameter: Message='Public or private session is missed'")
 	}
-	if err := publicSession.PrivateSession.Serialize(); err != nil {
+	if err := publicSession.Serialize(); err != nil {
 		return err
 	}
 	//client, err := util.GetTLSHttpClient()
 	if httpClient == nil {
 		httpClient = http.NewFastHTTPClient()
 	}
-	loginCallbackHeaders := map[string]interface{}{
-		"Authorization": fmt.Sprintf("%v: %q", cookieName, publicSession.PrivateSession.Token),
+	loginCallbackHeaders := map[string]string{
+		"Authorization": fmt.Sprintf("%v: %q", cookieName, publicSession.Token),
 		"Accept":        "application/json",
 	}
 	log.Debug("LoginCallbackRequest",

@@ -164,7 +164,12 @@ func (handler *HeaderAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *h
 	)
 	authorizationFields := strings.Fields(authorization)
 	if len(authorizationFields) > 1 {
-		jwtSessionToken := []byte(authorizationFields[1])
+		token := strings.Trim(authorizationFields[1], `"`)
+		log.Info("ReadingSession",
+			logger.String("TokenName", authorizationFields[0]),
+			logger.String("Token", token),
+		)
+		jwtSessionToken := []byte(token)
 		session, err := ReadSession(jwtSessionToken)
 		log.Info("GotIdentitySession",
 			logger.Struct("Session", session),
