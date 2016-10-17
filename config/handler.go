@@ -11,5 +11,5 @@ type HandlerConfig struct {
 }
 
 func (h HandlerConfig) String() string {
-	return fmt.Sprintf("HandlerConfig[Version=%v BindAddress=%v]", h.Version, h.BindAddress)
+	return fmt.Sprintf("HandlerConfig Version=%v BindAddress=%v", h.Version, h.BindAddress)
 }

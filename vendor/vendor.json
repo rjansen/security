@@ -3,7 +3,7 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "D1Sewf7TRckvS/8iuDuvNF/Nc+E=",
+			"checksumSHA1": "/T2vvAe1DS+KLCsfijv7msr8PE0=",
 			"path": "farm.e-pedion.com/repo/cache",
 			"revision": "a3a80ee4639ce294f7bef33c559b202a6fb693cb",
 			"revisionTime": "2016-06-12T07:42:12Z"
@@ -15,10 +15,10 @@
 			"revisionTime": "2016-06-13T00:45:20Z"
 		},
 		{
-			"checksumSHA1": "6RZfFdni4JMzJH2CqgELqvkm9O8=",
+			"checksumSHA1": "z9phx/vtZ0DC963QpLeU53DbgII=",
 			"path": "farm.e-pedion.com/repo/logger",
-			"revision": "c9c913a25c472be73037b6e5a5bc895f396b7c24",
-			"revisionTime": "2016-10-10T05:04:27Z"
+			"revision": "1498f44c4c5f2c0baf71fc18d46035b52fcd699e",
+			"revisionTime": "2016-10-10T14:12:50Z"
 		},
 		{
 			"checksumSHA1": "xMFUuPv/35b7LGdQ450dUvNKxI4=",

@@ -8,5 +8,6 @@
 tags
 /security
 /vendor/*/
+/.vscode/
 *.pprof
 *.test

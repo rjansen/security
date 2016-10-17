@@ -7,12 +7,48 @@ logger:
     format: "text"
     out: "./security.test.log"
 
+version: "0.0.1-young"
+environment: "local"
+
+logger:
+    provider: "logrus"
+    level: "debug"
+    format: "text_color"
+    out: "./security.local.log"
+
+cache:
+    provider: "memcached"
+    url: "127.0.0.1:11211"
+
 cassandra:
     url: "127.0.0.1:9042"
     keyspace: "fivecolors_test"
     username: "fivecolors_test"
     password: "fivecolors_test"
 
+security:
+    encrypt_cost: 10
+    cookie_name: "FIVECOLORS_ID"
+    cookie_domain: "darkside.e-pedion.com"
+    cookie_path: "/"
+    client_use_custom_ssl_certificate: false
+    custom_ssl_certificate_path: "/Users/raphaeljansen/Apps/Cert/startcom.sha2.root.ca.crt"
+
+http:
+    request_timeout: 500
+	max_conns_perhost: 250
+
 handler:
     version: "1.0"
-    bind: ":6080"
+    bind: ":7080"
+
+proxy:
+	api_url: "http://127.0.0.1:4000"
+    web_url: "http://127.0.0.1:3000"
+    login_url: "https://moon.e-pedion.com:8443/fivecolors/auth/login"
+    use_login_callback: true
+    login_callback_url: "http://127.0.0.1:4000/player"
+    redirect_url: "https://moon.e-pedion.com:8443/fivecolors/web"
+    form_uri: "/fivecolors/auth/login/"
+    form_username_field: "fivecolors_username"
+    form_password_field: "fivecolors_password"

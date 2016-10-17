@@ -14,10 +14,15 @@ import (
 )
 
 var (
-	log       = logger.GetLogger()
+	log       logger.Logger
 	jwtKey    = []byte("321ewqdsa#@!")
 	jwtCrypto = crypto.SigningMethodHS512
 )
+
+func Setup() error {
+	log = logger.Get()
+	return nil
+}
 
 //NewSession creates a new session from JWT
 func NewSession(jwt jwt.JWT) (*Session, error) {

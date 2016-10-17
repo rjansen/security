@@ -1,6 +1,7 @@
 package config
 
 import (
+	"farm.e-pedion.com/repo/cache"
 	"farm.e-pedion.com/repo/logger"
 	"flag"
 	"fmt"
@@ -39,21 +40,29 @@ func Setup() error {
 
 //Configuration holds all possible configurations structs
 type Configuration struct {
-	Version     string `mapstructure:"version"`
-	Environment string `mapstructure:"environment"`
-	//*DBConfig
-	//*CacheConfig
-	//*HTTPConfig
-	Cassandra CassandraConfig `mapstructure:"cassandra"`
-	Handler   HandlerConfig   `mapstructure:"handler"`
-	Proxy     ProxyConfig
-	Security  SecurityConfig
-	Logger    logger.Configuration `mapstructure:"logger"`
+	Version     string               `mapstructure:"version"`
+	Environment string               `mapstructure:"environment"`
+	Logger      logger.Configuration `mapstructure:"logger"`
+	Cache       cache.Configuration  `mapstructure:"cache"`
+	Cassandra   CassandraConfig      `mapstructure:"cassandra"`
+	HTTP        HTTPConfig           `mapstrucure:"http"`
+	Security    SecurityConfig       `mapstrucure:"security"`
+	Handler     HandlerConfig        `mapstructure:"handler"`
+	Proxy       ProxyConfig          `mapstrucure:"proxy"`
 }
 
 func (c Configuration) String() string {
 	//return fmt.Sprintf("Configuration[Version=%v ProxyConfig=%v DBConfig=%v SecurityConfig=%v CacheConfig=%v LoggerConfig=%v]", c.Version, c.ProxyConfig, c.DBConfig, c.SecurityConfig, c.CacheConfig, c.LoggerConfig)
-	return fmt.Sprintf("Configuration[Version=%v Environment=%v Logger=%v Handler=%v Cassandra=%v]", c.Version, c.Environment, c.Logger, c.Handler, c.Cassandra)
+	return fmt.Sprintf("Configuration Version=%s Environment=%s Logger=%s Cache=%s Cassandra=%s HTTP=%s Security=%s Handler=%s Proxy=%s",
+		c.Version, c.Environment,
+		c.Logger.String(),
+		c.Cache.String(),
+		c.Cassandra.String(),
+		c.HTTP.String(),
+		c.Security.String(),
+		c.Handler.String(),
+		c.Proxy.String(),
+	)
 }
 
 //Get returns the configuration struct

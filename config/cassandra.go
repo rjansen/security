@@ -14,5 +14,5 @@ type CassandraConfig struct {
 }
 
 func (c CassandraConfig) String() string {
-	return fmt.Sprintf("CassandraConfig[URL=%v Keyspace=%v Username=%v Password=%v]", c.URL, c.Keyspace, c.Username, c.Password)
+	return fmt.Sprintf("CassandraConfig URL=%v Keyspace=%v Username=%v Password=%v", c.URL, c.Keyspace, c.Username, c.Password)
 }

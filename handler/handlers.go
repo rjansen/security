@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/logger"
+	"farm.e-pedion.com/repo/security/config"
 	"farm.e-pedion.com/repo/security/data"
 
 	"farm.e-pedion.com/repo/security/asset"
@@ -51,15 +51,15 @@ func (p *AuthenticatedHandler) GetSession() *data.PublicSession {
 func NewSessionCookieHandler(handler AuthenticatableHandler) FastHttpHandler {
 	return &SessionCookieHandler{
 		AuthenticatableHandler: handler,
-		ProxyConfig:            config.BindProxyConfiguration(),
-		SecurityConfig:         config.BindSecurityConfiguration(),
+		ProxyConfig:            config.Get().Proxy,
+		SecurityConfig:         config.Get().Security,
 	}
 }
 
 type SessionCookieHandler struct {
 	AuthenticatableHandler
-	*config.ProxyConfig
-	*config.SecurityConfig
+	config.ProxyConfig
+	config.SecurityConfig
 }
 
 func (handler *SessionCookieHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -209,14 +209,14 @@ func (handler *SessionHeaderHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 
 func NewAuthHandler() *AuthHandler {
 	return &AuthHandler{
-		ProxyConfig:    config.BindProxyConfiguration(),
-		SecurityConfig: config.BindSecurityConfiguration(),
+		ProxyConfig:    config.Get().Proxy,
+		SecurityConfig: config.Get().Security,
 	}
 }
 
 type AuthHandler struct {
-	*config.ProxyConfig
-	*config.SecurityConfig
+	config.ProxyConfig
+	config.SecurityConfig
 }
 
 func (l *AuthHandler) renderLoginPage(ctx *fasthttp.RequestCtx, parameters data.LoginPageData) {
@@ -226,10 +226,10 @@ func (l *AuthHandler) renderLoginPage(ctx *fasthttp.RequestCtx, parameters data.
 }
 
 func (l *AuthHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
-	log.Debug("LoginHandler.ServeHTTP",
-		logger.Bytes("Method", ctx.Method()),
+	log.Debug("LoginHandler.HandleRequest",
+		logger.String("Method", string(ctx.Method())),
 		logger.String("URI", ctx.URI().String()),
-		logger.Bytes("HOST", ctx.Host()),
+		logger.String("HOST", string(ctx.Host())),
 	)
 	method := ctx.Method()
 	if bytes.Equal(method, []byte("GET")) {
@@ -245,7 +245,7 @@ func (l *AuthHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 		//log.Printf("LoginHandler.GetAuthPage: Method[GET] URL[%v] HOST[%v] Headers[%q]", r.URL, r.Host, r.Header)
 		log.Debug("LoginHandler.GetAuthPage Method=GET",
 			logger.String("URI", ctx.URI().String()),
-			logger.Bytes("HOST", ctx.Host()),
+			logger.String("HOST", string(ctx.Host())),
 		)
 	} else if bytes.Equal(method, []byte("POST")) {
 		resultContentNegotiator := func(err error) {
@@ -284,7 +284,7 @@ func (l *AuthHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 		//log.Printf("LoginHandler.CreatingSession: Method[POST] URL[%v] HOST[%v] Headers[%q]", r.URL, r.Host, r.Header)
 		log.Info("LoginHandler.CreatingSession Method=POST",
 			logger.String("URI", ctx.URI().String()),
-			logger.Bytes("HOST", ctx.Host()),
+			logger.String("HOST", string(ctx.Host())),
 		)
 		//Dummy credentials
 		username := string(ctx.FormValue(l.ProxyConfig.FormUsernameField))
@@ -332,11 +332,11 @@ func (l *AuthHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 func NewLogoutHandler() FastHttpHandler {
 	return &SessionCookieHandler{
 		AuthenticatableHandler: &LogoutHandler{
-			SecurityConfig: config.BindSecurityConfiguration(),
-			ProxyConfig:    config.BindProxyConfiguration(),
+			SecurityConfig: config.Get().Security,
+			ProxyConfig:    config.Get().Proxy,
 		},
-		ProxyConfig:    config.BindProxyConfiguration(),
-		SecurityConfig: config.BindSecurityConfiguration(),
+		ProxyConfig:    config.Get().Proxy,
+		SecurityConfig: config.Get().Security,
 	}
 	// return &LogoutHandler{
 	// 	SecurityConfig: config.BindSecurityConfiguration(),
@@ -346,8 +346,8 @@ func NewLogoutHandler() FastHttpHandler {
 
 type LogoutHandler struct {
 	AuthenticatedHandler
-	*config.SecurityConfig
-	*config.ProxyConfig
+	config.SecurityConfig
+	config.ProxyConfig
 }
 
 func (l *LogoutHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
@@ -404,8 +404,8 @@ func (l *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewGetSessionHandler() FastHttpHandler {
 	return &SessionCookieHandler{
 		AuthenticatableHandler: &GetSessionHandler{},
-		ProxyConfig:            config.BindProxyConfiguration(),
-		SecurityConfig:         config.BindSecurityConfiguration(),
+		ProxyConfig:            config.Get().Proxy,
+		SecurityConfig:         config.Get().Security,
 	}
 }
 
@@ -472,8 +472,8 @@ func (h *GetSessionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewValidateSessionHandler() FastHttpHandler {
 	return &SessionCookieHandler{
 		AuthenticatableHandler: &ValidateSessionHandler{},
-		ProxyConfig:            config.BindProxyConfiguration(),
-		SecurityConfig:         config.BindSecurityConfiguration(),
+		ProxyConfig:            config.Get().Proxy,
+		SecurityConfig:         config.Get().Security,
 	}
 }
 
@@ -516,13 +516,13 @@ func NewLoginManagerHandler() FastHttpHandler {
 	return NewRequestMethodHandler(
 		&SessionCookieHandler{
 			AuthenticatableHandler: &GetLoginHandler{},
-			ProxyConfig:            config.BindProxyConfiguration(),
-			SecurityConfig:         config.BindSecurityConfiguration(),
+			ProxyConfig:            config.Get().Proxy,
+			SecurityConfig:         config.Get().Security,
 		},
 		&SessionCookieHandler{
 			AuthenticatableHandler: &PostLoginHandler{},
-			ProxyConfig:            config.BindProxyConfiguration(),
-			SecurityConfig:         config.BindSecurityConfiguration(),
+			ProxyConfig:            config.Get().Proxy,
+			SecurityConfig:         config.Get().Security,
 		})
 }
 

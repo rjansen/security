@@ -238,7 +238,7 @@ func TestSetPublicSessionSuccess(t *testing.T) {
 }
 
 func BenchmarkSetPublicSessionSuccess(b *testing.B) {
-	log = logger.NewLoggerByConfig(logger.Configuration{Provider: logger.LOGRUS})
+	log = logger.NewLoggerByConfig(logger.Configuration{Provider: logger.LOGRUS, Out: logger.DISCARD})
 	mockCacheClient := cache.NewMockClient()
 	ttl := 1 * time.Hour
 	for n := 0; n < b.N; n++ {

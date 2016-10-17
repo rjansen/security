@@ -7,22 +7,27 @@ import (
 	"net/url"
 	"regexp"
 
-	"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/logger"
+	"farm.e-pedion.com/repo/security/config"
 	"farm.e-pedion.com/repo/security/handler"
 	"github.com/valyala/fasthttp"
 )
 
 var (
-	log = logger.GetLogger()
+	log logger.Logger
 	//Create a config way to strip paths while proxy request
-	pathRegex, _ = regexp.Compile("\\/web|\\/api")
+	pathRegex, _ = regexp.Compile("^\\/web|^\\/api")
 )
+
+func Setup(config config.ProxyConfig) error {
+	log = logger.Get()
+	return nil
+}
 
 func NewApiReverseProxy(targetURL *url.URL) handler.FastHttpHandler {
 	return handler.NewSessionCookieHandler(
 		&ApiReverseProxy{
-			SecurityConfig: config.BindSecurityConfiguration(),
+			SecurityConfig: config.Get().Security,
 			ProxyURL:       targetURL,
 			reverseProxy:   httputil.NewSingleHostReverseProxy(targetURL),
 			proxyClient: &fasthttp.HostClient{
@@ -33,7 +38,7 @@ func NewApiReverseProxy(targetURL *url.URL) handler.FastHttpHandler {
 
 type ApiReverseProxy struct {
 	handler.AuthenticatedHandler
-	*config.SecurityConfig
+	config.SecurityConfig
 	ProxyURL     *url.URL
 	reverseProxy *httputil.ReverseProxy
 	proxyClient  *fasthttp.HostClient
@@ -62,6 +67,7 @@ func (a *ApiReverseProxy) HandleRequest(ctx *fasthttp.RequestCtx) {
 			logger.String("Path", requestedPath),
 			logger.Error(err),
 		)
+		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 	}
 }
 
@@ -88,7 +94,7 @@ func (a *ApiReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewWebReverseProxy(targetURL *url.URL) handler.FastHttpHandler {
 	return handler.NewSessionCookieHandler(
 		&WebReverseProxy{
-			SecurityConfig: config.BindSecurityConfiguration(),
+			SecurityConfig: config.Get().Security,
 			ProxyURL:       targetURL,
 			reverseProxy:   httputil.NewSingleHostReverseProxy(targetURL),
 			proxyClient: &fasthttp.HostClient{
@@ -99,7 +105,7 @@ func NewWebReverseProxy(targetURL *url.URL) handler.FastHttpHandler {
 
 type WebReverseProxy struct {
 	handler.AuthenticatedHandler
-	*config.SecurityConfig
+	config.SecurityConfig
 	ProxyURL     *url.URL
 	reverseProxy *httputil.ReverseProxy
 	proxyClient  *fasthttp.HostClient
@@ -137,6 +143,7 @@ func (a *WebReverseProxy) HandleRequest(ctx *fasthttp.RequestCtx) {
 			logger.String("Path", requestedPath),
 			logger.Error(err),
 		)
+		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 	}
 }
 

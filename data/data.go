@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"farm.e-pedion.com/repo/cache"
-	"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/security/client/cassandra"
+	"farm.e-pedion.com/repo/security/config"
 	"farm.e-pedion.com/repo/security/identity"
 	"farm.e-pedion.com/repo/security/util"
 	"github.com/SermoDigital/jose/crypto"
@@ -22,15 +22,27 @@ const (
 )
 
 var (
-	log = logger.GetLogger()
+	log             logger.Logger
+	proxyConfig     *config.ProxyConfig
+	securityConfig  *config.SecurityConfig
+	cacheClient     cache.Client
+	cassandraClient cassandra.Client
 	//memoryCache    = make(map[string]*identity.Session)
-	jwtKey         = []byte("321ewqdsa#@!")
-	jwtCrypto      = crypto.SigningMethodHS512
-	proxyConfig    = config.BindProxyConfiguration()
-	securityConfig = config.BindSecurityConfiguration()
+
+	jwtKey    = []byte("321ewqdsa#@!")
+	jwtCrypto = crypto.SigningMethodHS512
 	//NotFoundErr is the error that returns when a read one dont match any record
 	NotFoundErr = cassandra.NotFoundErr
 )
+
+func Setup(config config.Configuration) error {
+	log = logger.Get()
+	proxyConfig = &config.Proxy
+	securityConfig = &config.Security
+	cacheClient = cache.NewClient()
+	cassandraClient = cassandra.NewClient()
+	return nil
+}
 
 //Authenticator is the data struct of the security authenticato configuration
 type Authenticator struct {
@@ -88,6 +100,7 @@ func (l *Login) Fetch(fetchable cassandra.Fetchable) error {
 
 //Read gets the entity representation from the database.
 func (l *Login) Read() error {
+	l.Client = cassandraClient
 	if strings.TrimSpace(l.Username) == "" {
 		return errors.New("ReadError[Message='Login.Username is empty']")
 	}
@@ -192,6 +205,7 @@ func (s *PublicSession) Get() error {
 	if strings.TrimSpace(s.ID) == "" {
 		return errors.New("data.PublicSession.Get: Message='PublicSession.ID is empty'")
 	}
+	log.Info("GetPublicSession", logger.Struct("client", s.Client))
 	sessionBytes, err := s.Client.Get(s.ID)
 	if err != nil {
 		return fmt.Errorf("data.GetSessionError: Message='ImpossibleToGetCachedSession: ID=%v Cause=%v'", s.ID, err.Error())

@@ -37,15 +37,15 @@ func (p *AuthenticatedHandler) GetSession() *Session {
 func NewCookieAuthenticatedHandler(handler AuthenticatableHandler) http.Handler {
 	return &CookieAuthenticatedHandler{
 		AuthenticatableHandler: handler,
-		ProxyConfig:            config.BindProxyConfiguration(),
-		SecurityConfig:         config.BindSecurityConfiguration(),
+		ProxyConfig:            config.Get().Proxy,
+		SecurityConfig:         config.Get().Security,
 	}
 }
 
 type CookieAuthenticatedHandler struct {
 	AuthenticatableHandler
-	*config.ProxyConfig
-	*config.SecurityConfig
+	config.ProxyConfig
+	config.SecurityConfig
 }
 
 func (handler *CookieAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

@@ -1,7 +1,7 @@
 package http
 
 import (
-	"farm.e-pedion.com/repo/config"
+	"farm.e-pedion.com/repo/security/config"
 	"time"
 )
 
@@ -31,7 +31,7 @@ var (
 )
 
 //Setup initializes the package
-func Setup(config *config.HTTPConfig) error {
+func Setup(config config.HTTPConfig) error {
 	requestTimeout = time.Duration(config.RequestTimeout) * time.Millisecond
 	maxConnxPerHost = config.MaxConnsPerHost
 	return nil

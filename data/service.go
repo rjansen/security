@@ -23,7 +23,7 @@ var (
 func Authenticate(username string, password string) (*PublicSession, error) {
 	login := &Login{
 		Username: username,
-		Client:   cassandra.NewClient(),
+		Client:   cassandraClient,
 	}
 	if err := login.Read(); err != nil {
 		log.Error("Authenticate.ReadLoginError",
@@ -57,6 +57,7 @@ func Authenticate(username string, password string) (*PublicSession, error) {
 	}
 	expires := time.Now().Add(day)
 	publicSession := &PublicSession{
+		Client:   cacheClient,
 		Issuer:   "e-pedion.com",
 		ID:       publicSessionID,
 		Username: login.Username,
@@ -159,6 +160,7 @@ func ReadSession(token []byte) (*PublicSession, error) {
 		return nil, err
 	}
 	publicSession := &PublicSession{
+		Client:   cacheClient,
 		ID:       jwt.Claims().Get("id").(string),
 		Token:    []byte(token),
 		Username: jwt.Claims().Get("username").(string),

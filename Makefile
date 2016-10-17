@@ -38,6 +38,16 @@ CASSANDRA_SCHEMA_FILE := $(TEST_CQL_DIR)/fivecolors_test.cql
 CASSANDRA_DROP_SCHEMA_FILE := $(TEST_CQL_DIR)/drop_fivecolors_test.cql
 CASSANDRA_DATA_FILE := $(TEST_CQL_DIR)/data_fivecolors_test.cql
 
+MONGO_USER := fivecolors_test
+MONGO_PWD := fivecolors_test
+MONGO_DB := fivecolors_test
+TEST_MONGO_DIR := $(TEST_ETC_DIR)/mongo/script
+MONGO_DB_FILE := $(TEST_MONGO_DIR)/database.mongo
+MONGO_DROP_DB_FILE := $(TEST_MONGO_DIR)/drop_database.mongo
+MONGO_SCHEMA_FILE := $(TEST_MONGO_DIR)/fivecolors_test.js
+MONGO_DROP_SCHEMA_FILE := $(TEST_MONGO_DIR)/drop_fivecolors_test.js
+MONGO_DATA_FILE := $(TEST_MONGO_DIR)/data_fivecolors_test.js
+
 WRK_CONNS ?= 100
 WRK_THREADS ?= 10
 WRK_DURATION ?= 10s
@@ -175,13 +185,14 @@ test:
 
 .PHONY: bench_all
 bench_all:
-	go test -bench=. -run="^$$" -cpuprofile=cpu.pprof -memprofile=mem.pprof -benchmem
+	#go test -bench=. -run="^$$" -cpuprofile=cpu.pprof -memprofile=mem.pprof -benchmem $(PKGS)
+	go test -bench=. -run="^$$" -benchmem $(PKGS)
 
 .PHONY: bench
 bench:
 	@if [ "$(TEST_PKGS)" == "" ]; then \
 	    echo "Bench All Pkgs" ;\
-		for tstpkg in $(PKGS); do \
+	    for tstpkg in $(PKGS); do \
 		    go test -bench=. -run="^$$" -cpuprofile=cpu.pprof -memprofile=mem.pprof -benchmem $$tstpkg || exit 501;\
 		done; \
 	else \
@@ -276,6 +287,28 @@ up_cassandra:
 	cqlsh -u cassandra -p cassandra -f $(CASSANDRA_KEY_FILE)
 	cqlsh -u $(CASSANDRA_USER) -p $(CASSANDRA_PWD) -k $(CASSANDRA_KEY) -f $(CASSANDRA_SCHEMA_FILE)
 
+.PHONY: run_mongo
+run_mongo:
+	@echo "Executing mongo"
+	mongo $(MONGO_DB) -u $(MONGO_USER) -p $(MONGO_PWD) $(MONGO_DATA_FILE)
+	mongo $(MONGO_DB) -u $(MONGO_USER) -p $(MONGO_PWD) --eval "db.login.find()"
+
+.PHONY: down_mongo
+down_mongo:
+	@echo "Down mongo" 
+	@echo "Dropping mongo schema" 
+	-mongo $(MONGO_DB) -u $(MONGO_USER) -p $(MONGO_PWD) $(MONGO_DROP_SCHEMA_FILE)
+	mongo admin -u admin -p mongo < $(MONGO_DROP_DB_FILE)
+
+.PHONY: up_mongo
+up_mongo:
+	@echo "Up mongo" 
+	@echo "Dropping mongo schema" 
+	-mongo $(MONGO_DB) -u $(MONGO_USER) -p $(MONGO_PWD) $(MONGO_DROP_SCHEMA_FILE)
+	-mongo admin -u admin -p mongo < $(MONGO_DROP_DB_FILE)
+	@echo "Creating mongo" 
+	mongo admin -u admin -p mongo < $(MONGO_DB_FILE)
+	mongo $(MONGO_DB) -u $(MONGO_USER) -p $(MONGO_PWD) $(MONGO_SCHEMA_FILE)
 
 .PHONY: $(NAME).pid
 $(NAME).pid: build
@@ -298,9 +331,14 @@ wrk:
 .PHONY: load_test
 load_test: up_cassandra up_test wrk down_test down_cassandra 
 
+.PHONY: bench_test
+bench_test: up_cassandra run_cql up_mongo run_mongo bench down_cassandra down_mongo 
+
 .PHONY: test_cassandra
 test_cassandra: up_cassandra run_cql down_cassandra
 
+.PHONY: test_cassandra
+test_mongo: up_mongo run_mongo down_mongo
 
 .PHONY: cassandra
 cassandra:
