@@ -102,7 +102,7 @@ func loginCallback(cookieName string, loginCallbackURL string, publicSession *Pu
 	if publicSession == nil || publicSession.PrivateSession == nil {
 		return errors.New("InvalidRequiredParameter: Message='Public or private session is missed'")
 	}
-	if err := publicSession.Serialize(); err != nil {
+	if err := publicSession.PrivateSession.Serialize(); err != nil {
 		return err
 	}
 	//client, err := util.GetTLSHttpClient()
@@ -110,7 +110,7 @@ func loginCallback(cookieName string, loginCallbackURL string, publicSession *Pu
 		httpClient = http.NewFastHTTPClient()
 	}
 	loginCallbackHeaders := map[string]string{
-		"Authorization": fmt.Sprintf("%v: %q", cookieName, publicSession.Token),
+		"Authorization": fmt.Sprintf("%v: %q", cookieName, publicSession.PrivateSession.Token),
 		"Accept":        "application/json",
 	}
 	log.Debug("LoginCallbackRequest",
@@ -128,9 +128,13 @@ func loginCallback(cookieName string, loginCallbackURL string, publicSession *Pu
 		return fmt.Errorf("LoginCallbackInvalidStatusCode[Message='Bad status code: %v']", response.StatusCode())
 	}
 	bodyBytes := response.Body()
-	log.Debug("LoginCallbackResponse", logger.Int("ContentLength", response.ContentLength()))
+	log.Debug("LoginCallbackResponse",
+		logger.String("data", string(bodyBytes)),
+		logger.Int("ContentLength", response.ContentLength()),
+	)
 	loginData := make(map[string]interface{})
 	if err := json.Unmarshal(bodyBytes, &loginData); err != nil {
+		log.Error("UnmarshallCallbackDataErr", logger.Error(err))
 		return err
 	}
 	//delete(loginData, "username")

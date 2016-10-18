@@ -100,7 +100,7 @@ func (c *FastHTTPClient) do(request Request) (Response, error) {
 	var bodyBytes []byte
 	if res.Header.ContentLength() > 0 {
 		bodyBuffer := bytebufferpool.Get()
-		_, err := res.WriteTo(bodyBuffer)
+		err := res.BodyWriteTo(bodyBuffer)
 		if err != nil {
 			return nil, err
 		}
