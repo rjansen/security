@@ -25,7 +25,7 @@ db:
         username: "fivecolors"
         password: "fivecolors"
         numConns: 10
-        keepAliveDuration: 60000000000
+        keepAliveDuration: "10s1ms"
 
 http:
     request_timeout: 500

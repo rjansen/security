@@ -1,31 +1,21 @@
-version: "getBenchmark_0.0.1-young"
-environment: "test"
+version: "0.0.1-young"
+environment: "prod"
 
 logger:
-    root:
-        debug: false
-        provider: "logrus"
-        level: "debug"
-        format: "text"
-        out: "stdout"
-    access:
-        provider: "logrus"
-        level: "info"
-        format: "json"
-        out: "./security.access.log"
+    provider: "logrus"
+    level: "debug"
+    format: "text_color"
+    out: "stdout"
 
 cache:
     provider: "memcached"
     url: "127.0.0.1:11211"
 
-db:
-    cassandra:
-        url: "127.0.0.1:9042"
-        keyspace: "fivecolors"
-        username: "fivecolors"
-        password: "fivecolors"
-        numConns: 10
-        keepAliveDuration: 60000000000
+cassandra:
+    url: "127.0.0.1:9042"
+    keyspace: "fivecolors"
+    username: "fivecolors"
+    password: "fivecolors"
 
 http:
     request_timeout: 500

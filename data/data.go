@@ -8,9 +8,10 @@ import (
 	"time"
 
 	"farm.e-pedion.com/repo/cache"
+	"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/security/client/cassandra"
-	"farm.e-pedion.com/repo/security/config"
+	localConfig "farm.e-pedion.com/repo/security/config"
 	"farm.e-pedion.com/repo/security/identity"
 	"farm.e-pedion.com/repo/security/util"
 	"github.com/SermoDigital/jose/crypto"
@@ -22,9 +23,8 @@ const (
 )
 
 var (
-	log             logger.Logger
-	proxyConfig     *config.ProxyConfig
-	securityConfig  *config.SecurityConfig
+	proxyConfig     *localConfig.ProxyConfig
+	securityConfig  *localConfig.SecurityConfig
 	cacheClient     cache.Client
 	cassandraClient cassandra.Client
 	//memoryCache    = make(map[string]*identity.Session)
@@ -35,12 +35,19 @@ var (
 	NotFoundErr = cassandra.NotFoundErr
 )
 
-func Setup(config config.Configuration) error {
-	log = logger.Get()
-	proxyConfig = &config.Proxy
-	securityConfig = &config.Security
+func Setup() error {
+	logger.Info("data.SetupStart")
+	if err := config.UnmarshalKey("proxy", &proxyConfig); err != nil {
+		logger.Info("data.GetProxyConfigErr", logger.Err(err))
+		return err
+	}
+	if err := config.UnmarshalKey("security", &securityConfig); err != nil {
+		logger.Info("data.GetSecurityConfigErr", logger.Err(err))
+		return err
+	}
 	cacheClient = cache.NewClient()
 	cassandraClient = cassandra.NewClient()
+	logger.Info("data.SetupEnd")
 	return nil
 }
 
@@ -100,7 +107,6 @@ func (l *Login) Fetch(fetchable cassandra.Fetchable) error {
 
 //Read gets the entity representation from the database.
 func (l *Login) Read() error {
-	l.Client = cassandraClient
 	if strings.TrimSpace(l.Username) == "" {
 		return errors.New("ReadError[Message='Login.Username is empty']")
 	}
@@ -179,7 +185,7 @@ func (s *PublicSession) String() string {
 //Set sets the session to cache
 func (s *PublicSession) Set() error {
 	ttl := int(s.PrivateSession.TTL / time.Second)
-	log.Debug("StoringSession",
+	logger.Debug("StoringSession",
 		logger.String("ID", s.ID),
 		logger.Int("TTL", ttl),
 		logger.String("Private", s.PrivateSession.String()),
@@ -192,7 +198,7 @@ func (s *PublicSession) Set() error {
 	if err != nil {
 		return fmt.Errorf("SetSessionError: Message='ImpossibleToCacheSession: ID=%v Cause=%v'", s.ID, err)
 	}
-	log.Info("SessionStored",
+	logger.Info("SessionStored",
 		logger.String("ID", s.ID),
 		logger.Int("TTL", ttl),
 		logger.Int("ValueLen", len(sessionBytes)),
@@ -205,12 +211,12 @@ func (s *PublicSession) Get() error {
 	if strings.TrimSpace(s.ID) == "" {
 		return errors.New("data.PublicSession.Get: Message='PublicSession.ID is empty'")
 	}
-	log.Info("GetPublicSession", logger.Struct("client", s.Client))
+	logger.Info("GetPublicSession", logger.Struct("client", s.Client))
 	sessionBytes, err := s.Client.Get(s.ID)
 	if err != nil {
 		return fmt.Errorf("data.GetSessionError: Message='ImpossibleToGetCachedSession: ID=%v Cause=%v'", s.ID, err.Error())
 	}
-	log.Debug("SessionLoadedFromCache",
+	logger.Debug("SessionLoadedFromCache",
 		logger.String("ID", s.ID),
 		logger.Int("ValueLen", len(sessionBytes)),
 	)

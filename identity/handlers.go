@@ -50,7 +50,7 @@ type CookieAuthenticatedHandler struct {
 
 func (handler *CookieAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	serveUnauthorizedResult := func() {
-		log.Info("HandleResult[Status=UnauthorizedRequest Message=401 StatusUnauthorized]")
+		logger.Info("HandleResult[Status=UnauthorizedRequest Message=401 StatusUnauthorized]")
 		apiAcceptRegex := "json|plain"
 		accpet := r.Header.Get("Accept")
 		if matches, _ := regexp.MatchString(apiAcceptRegex, accpet); matches {
@@ -60,23 +60,23 @@ func (handler *CookieAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *h
 		}
 	}
 	//serveForbiddendResult := func(w http.ResponseWriter, r *http.Request) {
-	//    log.Println("ForbiddenRequest: Message[403 StatusForbidden]")
+	//    logger.Println("ForbiddenRequest: Message[403 StatusForbidden]")
 	//    w.WriteHeader(http.StatusForbidden)
 	//}
 	cookie, err := r.Cookie(handler.SecurityConfig.CookieName)
 	if err == nil {
-		log.Info("GotCookieValueFromRequest",
+		logger.Info("GotCookieValueFromRequest",
 			logger.String("Name", handler.SecurityConfig.CookieName),
 			logger.String("Value", cookie.Value),
 		)
 		jwtSessionToken := []byte(cookie.Value)
 		session, err := ReadSession(jwtSessionToken)
-		log.Info("GotIdentitySession",
+		logger.Info("GotIdentitySession",
 			logger.Struct("Session", session),
 		)
 		if err != nil {
-			log.Error("ReadSessionError",
-				logger.Error(err),
+			logger.Error("ReadSessionError",
+				logger.Err(err),
 			)
 			serveUnauthorizedResult()
 		} else {
@@ -86,9 +86,9 @@ func (handler *CookieAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *h
 			handler.AuthenticatableHandler.ServeHTTP(w, r)
 		}
 	} else {
-		log.Info("ParseCookieError",
+		logger.Info("ParseCookieError",
 			logger.String("Name", handler.SecurityConfig.CookieName),
-			logger.Error(err),
+			logger.Err(err),
 		)
 		serveUnauthorizedResult()
 	}
@@ -96,7 +96,7 @@ func (handler *CookieAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *h
 
 func (handler *CookieAuthenticatedHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 	serveUnauthorizedResult := func() {
-		log.Info("HandleResult[Status=UnauthorizedRequest Message=401 StatusUnauthorized]")
+		logger.Info("HandleResult[Status=UnauthorizedRequest Message=401 StatusUnauthorized]")
 		apiAcceptRegex := "json|plain"
 		accpet := string(ctx.Request.Header.Peek("Accept"))
 		if matches, _ := regexp.MatchString(apiAcceptRegex, accpet); matches {
@@ -106,24 +106,24 @@ func (handler *CookieAuthenticatedHandler) HandleRequest(ctx *fasthttp.RequestCt
 		}
 	}
 	//serveForbiddendResult := func(w http.ResponseWriter, r *http.Request) {
-	//    log.Println("ForbiddenRequest: Message[403 StatusForbidden]")
+	//    logger.Println("ForbiddenRequest: Message[403 StatusForbidden]")
 	//    w.WriteHeader(http.StatusForbidden)
 	//}
 	cookieValue := ctx.Request.Header.Cookie(handler.SecurityConfig.CookieName)
 	var cookie fasthttp.Cookie
 	err := cookie.ParseBytes(cookieValue)
 	if err == nil {
-		log.Info("GotCookieValueFromRequest",
+		logger.Info("GotCookieValueFromRequest",
 			logger.String("Name", handler.SecurityConfig.CookieName),
 			logger.String("Value", cookie.String()),
 		)
 		session, err := ReadSession(cookie.Value())
-		log.Info("GotIdentitySession",
+		logger.Info("GotIdentitySession",
 			logger.Struct("Session", session),
 		)
 		if err != nil {
-			log.Error("ReadSessionError",
-				logger.Error(err),
+			logger.Error("ReadSessionError",
+				logger.Err(err),
 			)
 			serveUnauthorizedResult()
 		} else {
@@ -133,9 +133,9 @@ func (handler *CookieAuthenticatedHandler) HandleRequest(ctx *fasthttp.RequestCt
 			handler.AuthenticatableHandler.HandleRequest(ctx)
 		}
 	} else {
-		log.Info("ParseCookieError",
+		logger.Info("ParseCookieError",
 			logger.String("Name", handler.SecurityConfig.CookieName),
-			logger.Error(err),
+			logger.Err(err),
 		)
 		serveUnauthorizedResult()
 	}
@@ -151,32 +151,32 @@ type HeaderAuthenticatedHandler struct {
 
 func (handler *HeaderAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	serveUnauthorizedResult := func(w http.ResponseWriter, r *http.Request) {
-		log.Info("HandleResult[Status=UnauthorizedRequest Message=401 StatusUnauthorized]")
+		logger.Info("HandleResult[Status=UnauthorizedRequest Message=401 StatusUnauthorized]")
 		w.WriteHeader(http.StatusUnauthorized)
 	}
 	//serveForbiddendResult := func(w http.ResponseWriter, r *http.Request) {
-	//    log.Println("ForbiddenRequest: Message[403 StatusForbidden]")
+	//    logger.Println("ForbiddenRequest: Message[403 StatusForbidden]")
 	//    w.WriteHeader(http.StatusForbidden)
 	//}
 	authorization := r.Header.Get("Authorization")
-	log.Info("GotHeaderValueFromRequest",
+	logger.Info("GotHeaderValueFromRequest",
 		logger.String("Authorization", authorization),
 	)
 	authorizationFields := strings.Fields(authorization)
 	if len(authorizationFields) > 1 {
 		token := strings.Trim(authorizationFields[1], `"`)
-		log.Info("ReadingSession",
+		logger.Info("ReadingSession",
 			logger.String("TokenName", authorizationFields[0]),
 			logger.String("Token", token),
 		)
 		jwtSessionToken := []byte(token)
 		session, err := ReadSession(jwtSessionToken)
-		log.Info("GotIdentitySession",
+		logger.Info("GotIdentitySession",
 			logger.Struct("Session", session),
 		)
 		if err != nil {
-			log.Error("ReadSessionError",
-				logger.Error(err),
+			logger.Error("ReadSessionError",
+				logger.Err(err),
 			)
 			serveUnauthorizedResult(w, r)
 		} else {
@@ -192,15 +192,15 @@ func (handler *HeaderAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *h
 
 func (handler *HeaderAuthenticatedHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 	serveUnauthorizedResult := func() {
-		log.Info("HandleResult[Status=UnauthorizedRequest Message=401 StatusUnauthorized]")
+		logger.Info("HandleResult[Status=UnauthorizedRequest Message=401 StatusUnauthorized]")
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
 	}
 	//serveForbiddendResult := func(w http.ResponseWriter, r *http.Request) {
-	//    log.Println("ForbiddenRequest: Message[403 StatusForbidden]")
+	//    logger.Println("ForbiddenRequest: Message[403 StatusForbidden]")
 	//    w.WriteHeader(http.StatusForbidden)
 	//}
 	authorization := ctx.Request.Header.Peek("Authorization")
-	log.Info("GotHeaderValueFromRequest",
+	logger.Info("GotHeaderValueFromRequest",
 		logger.Bytes("Authorization", authorization),
 	)
 
@@ -208,12 +208,12 @@ func (handler *HeaderAuthenticatedHandler) HandleRequest(ctx *fasthttp.RequestCt
 	if len(authorizationFields) > 1 {
 		jwtToken := authorizationFields[1]
 		session, err := ReadSession(jwtToken)
-		log.Info("GotIdentitySession",
+		logger.Info("GotIdentitySession",
 			logger.Struct("Session", session),
 		)
 		if err != nil {
-			log.Error("ReadSessionError",
-				logger.Error(err),
+			logger.Error("ReadSessionError",
+				logger.Err(err),
 			)
 			serveUnauthorizedResult()
 		} else {

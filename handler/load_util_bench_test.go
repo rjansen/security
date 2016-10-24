@@ -2,36 +2,29 @@ package handler
 
 import (
 	"bytes"
-	"farm.e-pedion.com/repo/logger"
+	"context"
 	"farm.e-pedion.com/repo/security/client/cassandra"
-	"farm.e-pedion.com/repo/security/config"
+	"farm.e-pedion.com/repo/security/client/mongo"
 	"farm.e-pedion.com/repo/security/data"
 	"github.com/gocql/gocql"
 	"github.com/stretchr/testify/assert"
 	"github.com/valyala/fasthttp"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"os"
 	"strconv"
 	"testing"
 )
 
+var (
+	testArgs = os.Args
+)
+
 func BenchmarkGetTestHandler(b *testing.B) {
-	logSetupErr := logger.Setup(logger.Configuration{
-		Provider: logger.LOGRUS,
-		Level:    logger.DEBUG,
-		Out:      logger.Out("./security.bench.log"),
-	})
-	if logSetupErr != nil {
-		panic(logSetupErr)
-	}
-	log = logger.GetLogger()
-	assert.Nil(b, cassandra.Setup(config.CassandraConfig{
-		URL:      "127.0.0.1:9042",
-		Keyspace: "fivecolors",
-		Username: "fivecolors",
-		Password: "fivecolors",
-	}))
+	os.Args = append(testArgs, "-ecf", "../test/etc/security/getBenchmark.yaml")
+	assert.Nil(b, cassandra.Setup())
 	testHandler := NewLoadTestHandler()
+	assert.NotNil(b, testHandler)
 
 	var times int
 	b.ResetTimer()
@@ -44,8 +37,9 @@ func BenchmarkGetTestHandler(b *testing.B) {
 			username := "darkside"
 			req.SetRequestURI("http://test/" + username)
 			ctx.Init(&req, nil, nil)
+			c := context.Background()
 
-			testHandler.Get.HandleRequest(&ctx)
+			testHandler(c, &ctx)
 
 			assert.NotEmpty(b, ctx.Response.Body())
 			assert.True(b, bytes.Contains(ctx.Response.Body(), []byte(username)))
@@ -55,7 +49,7 @@ func BenchmarkGetTestHandler(b *testing.B) {
 }
 
 func BenchmarkPostTestHandler(b *testing.B) {
-	log = logger.NewLoggerByConfig(logger.Configuration{Level: logger.ERROR, Out: logger.DISCARD})
+	os.Args = append(testArgs, "-ecf", "../test/etc/security/getBenchmark.yaml")
 	testHandler := NewLoadTestHandler()
 
 	var times int
@@ -70,7 +64,8 @@ func BenchmarkPostTestHandler(b *testing.B) {
 			req.SetBody([]byte(`{"username": "` + username + `"}`))
 			ctx.Init(&req, nil, nil)
 
-			testHandler.Post.HandleRequest(&ctx)
+			c := context.Background()
+			testHandler(c, &ctx)
 
 			assert.NotEmpty(b, ctx.Response.Body())
 			assert.True(b, bytes.Contains(ctx.Response.Body(), []byte(username)))
@@ -80,16 +75,8 @@ func BenchmarkPostTestHandler(b *testing.B) {
 }
 
 func BenchmarkCassandraRead(b *testing.B) {
-	logSetupErr := logger.Setup(logger.Configuration{
-		Provider: logger.LOGRUS,
-		Level:    logger.DEBUG,
-		Out:      logger.Out("./security.bench.log"),
-	})
-	if logSetupErr != nil {
-		panic(logSetupErr)
-	}
-	log = logger.GetLogger()
-	config := config.CassandraConfig{
+	os.Args = append(testArgs, "-ecf", "../test/etc/security/getBenchmark.yaml")
+	config := cassandra.Configuration{
 		URL:      "127.0.0.1:9042",
 		Keyspace: "fivecolors_test",
 		Username: "fivecolors_test",
@@ -131,17 +118,9 @@ func BenchmarkCassandraRead(b *testing.B) {
 }
 
 func BenchmarkMongoRead(b *testing.B) {
-	logSetupErr := logger.Setup(logger.Configuration{
-		Provider: logger.LOGRUS,
-		Level:    logger.DEBUG,
-		Out:      logger.Out("./security.bench.log"),
-	})
-	if logSetupErr != nil {
-		panic(logSetupErr)
-	}
-	log = logger.GetLogger()
+	os.Args = append(testArgs, "-ecf", "../test/etc/security/getBenchmark.yaml")
 
-	config := config.MongoConfig{
+	config := mongo.Configuration{
 		URL:      "127.0.0.1:27017",
 		Database: "fivecolors_test",
 		Username: "fivecolors_test",

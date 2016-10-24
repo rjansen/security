@@ -1,7 +1,8 @@
 package http
 
 import (
-	"farm.e-pedion.com/repo/security/config"
+	"farm.e-pedion.com/repo/config"
+	"fmt"
 	"time"
 )
 
@@ -30,10 +31,24 @@ var (
 	maxConnxPerHost int
 )
 
+//Configuration holds http connections parameters
+type Configuration struct {
+	RequestTimeout  int `mapstructure:"request_timeout"`
+	MaxConnsPerHost int `mapstructure:"max_conns_perhost"`
+}
+
+func (c Configuration) String() string {
+	return fmt.Sprintf("http.Configuration RequestTimeout=%d MaxConnsPerHost=%d", c.RequestTimeout, c.MaxConnsPerHost)
+}
+
 //Setup initializes the package
-func Setup(config config.HTTPConfig) error {
-	requestTimeout = time.Duration(config.RequestTimeout) * time.Millisecond
-	maxConnxPerHost = config.MaxConnsPerHost
+func Setup() error {
+	var cfg *Configuration
+	if err := config.UnmarshalKey("http", cfg); err != nil {
+		return err
+	}
+	requestTimeout = time.Duration(cfg.RequestTimeout) * time.Millisecond
+	maxConnxPerHost = cfg.MaxConnsPerHost
 	return nil
 }
 

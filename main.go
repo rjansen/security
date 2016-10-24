@@ -1,92 +1,112 @@
 package main
 
 import (
-	"bytes"
+	// "bytes"
+	"context"
 	"farm.e-pedion.com/repo/cache"
+	"farm.e-pedion.com/repo/config"
+	myCtx "farm.e-pedion.com/repo/context"
+	// ctxFast "farm.e-pedion.com/repo/context/fasthttp"
 	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/security/client/cassandra"
-	"farm.e-pedion.com/repo/security/client/http"
-	"farm.e-pedion.com/repo/security/config"
+	localConfig "farm.e-pedion.com/repo/security/config"
+	// "farm.e-pedion.com/repo/security/client/http"
+	// "farm.e-pedion.com/repo/security/config"
 	"farm.e-pedion.com/repo/security/data"
 	"farm.e-pedion.com/repo/security/handler"
-	"farm.e-pedion.com/repo/security/proxy"
-	"fmt"
+	// "farm.e-pedion.com/repo/security/proxy"
 	"github.com/valyala/fasthttp"
-	"net/url"
+	// "net/url"
 	//"time"
 )
 
+func init() {
+	logger.Info("security.init")
+	errs := myCtx.Setup(
+		cassandra.Setup,
+		cache.Setup,
+		data.Setup,
+	)
+	if errs != nil {
+		logger.Panic("security.main.initErr ", logger.Struct("errs", errs))
+	}
+}
+
 func main() {
 	var err error
-	if err = config.Setup(); err != nil {
-		panic(err)
+	var configuration *localConfig.Configuration
+	if err = config.Unmarshal(&configuration); err != nil {
+		logger.Panic("security.configurationErr", logger.Err(err))
 	}
+	logger.Info("security.setted", logger.String("configuration", configuration.String()))
 
-	configuration := config.Get()
-	fmt.Printf("Security.Set[%s]\n", configuration.String())
-
-	if err = logger.Setup(configuration.Logger); err != nil {
-		panic(err)
-	}
-	log := logger.GetLogger()
-
-	if err = cache.Setup(configuration.Cache); err != nil {
-		log.Panic("CacheSetupErr", logger.String("err", err.Error()))
-	}
-
-	if err = cassandra.Setup(configuration.Cassandra); err != nil {
-		log.Panic("CassandraClientSetupErr", logger.Error(err))
-	}
-
-	if err = data.Setup(*configuration); err != nil {
-		log.Panic("DataSetupErr", logger.Error(err))
-	}
-
-	if err = http.Setup(configuration.HTTP); err != nil {
-		log.Panic("HTTPSetupErr", logger.String("err", err.Error()))
-	}
-
-	if err = handler.Setup(log); err != nil {
-		log.Panic("HandlerSetupErr", logger.Error(err))
-	}
-
-	// loadTestHandler := handler.NewLoadTestHandler()
-
-	// httpHandler := func(ctx *fasthttp.RequestCtx) {
-	// 	switch {
-	// 	case ctx.IsGet():
-	// 		loadTestHandler.Get.HandleRequest(ctx)
-	// 	case ctx.IsPost(), ctx.IsPut():
-	// 		loadTestHandler.Post.HandleRequest(ctx)
-	// 	//case ctx.IsDelete():
-	// 	//	loadTestHandler.Delete.HandleRequest(ctx)
-	// 	default:
-	// 		ctx.Error("405 - MethodNotAllowed", fasthttp.StatusMethodNotAllowed)
-	// 	}
+	// if err = cache.Setup(configuration.Cache); err != nil {
+	// 	log.Panic("CacheSetupErr", logger.String("err", err.Error()))
 	// }
 
-	webRemote, err := url.Parse(configuration.Proxy.WebURL)
-	if err != nil {
-		log.Panic("WebURLSetupErr", logger.String("err", err.Error()))
-	}
-	apiRemote, err := url.Parse(configuration.Proxy.ApiURL)
-	if err != nil {
-		log.Panic("ApiURLSetupErr", logger.String("err", err.Error()))
+	// if err = cassandra.Setup(); err != nil {
+	// 	log.Panic("CassandraClientSetupErr", logger.Err(err))
+	// }
+
+	// if err = data.Setup(); err != nil {
+	// 	log.Panic("DataSetupErr", logger.Err(err))
+	// }
+
+	// if err = http.Setup(configuration.HTTP); err != nil {
+	// 	log.Panic("HTTPSetupErr", logger.String("err", err.Error()))
+	// }
+
+	// if err = handler.Setup(log); err != nil {
+	// 	log.Panic("HandlerSetupErr", logger.Err(err))
+	// }
+
+	loadTestHandler := handler.NewLoadTestHandler()
+
+	httpHandler := func(fc *fasthttp.RequestCtx) {
+		// ctx := context.Background()
+		// ctxFast.Log(ctxFast.Error(func(c context.Context, fc *fasthttp.RequestCtx) error {
+		// 	fc.Write([]byte("HandlerOK"))
+		// 	fc.SetStatusCode(fasthttp.StatusOK)
+		// 	return nil
+		// }))(nil, fc)
+		c := context.Background()
+		if err := loadTestHandler(c, fc); err != nil {
+			logger.Error("security.main.handlerErr", logger.Err(err))
+		}
+		// switch {
+		// case ctx.IsGet():
+		// 	myFast.LogHandler(myFast.ErrorHandler(loadTestHandler.Get.HandleRequest(container, ctx)))
+		// case ctx.IsPost(), ctx.IsPut():
+		// 	loadTestHandler.Post.HandleRequest(ctx)
+		// //case ctx.IsDelete():
+		// //	loadTestHandler.Delete.HandleRequest(ctx)
+		// default:
+		// 	ctx.Error("405 - MethodNotAllowed", fasthttp.StatusMethodNotAllowed)
+		// }
 	}
 
-	if err = proxy.Setup(configuration.Proxy); err != nil {
-		log.Panic("ProxySetupErr", logger.Error(err))
-	}
+	// webRemote, err := url.Parse(configuration.Proxy.WebURL)
+	// if err != nil {
+	// 	log.Panic("WebURLSetupErr", logger.String("err", err.Error()))
+	// }
+	// apiRemote, err := url.Parse(configuration.Proxy.ApiURL)
+	// if err != nil {
+	// 	log.Panic("ApiURLSetupErr", logger.String("err", err.Error()))
+	// }
 
-	log.Info("Security.Set", logger.Struct("config", configuration))
+	// if err = proxy.Setup(configuration.Proxy); err != nil {
+	// 	log.Panic("ProxySetupErr", logger.Err(err))
+	// }
 
-	authHandler := handler.NewAuthHandler()
-	logoutHandler := handler.NewLogoutHandler()
-	sessionHandler := handler.NewGetSessionHandler()
-	validateSessionHandler := handler.NewValidateSessionHandler()
-	identityHandler := handler.NewLoginManagerHandler()
-	webProxy := proxy.NewWebReverseProxy(webRemote)
-	apiProxy := proxy.NewApiReverseProxy(apiRemote)
+	// log.Info("Security.Set", logger.Struct("config", configuration))
+
+	// authHandler := handler.NewAuthHandler()
+	// logoutHandler := handler.NewLogoutHandler()
+	// sessionHandler := handler.NewGetSessionHandler()
+	// validateSessionHandler := handler.NewValidateSessionHandler()
+	// identityHandler := handler.NewLoginManagerHandler()
+	// webProxy := proxy.NewWebReverseProxy(webRemote)
+	// apiProxy := proxy.NewApiReverseProxy(apiRemote)
 
 	// http.Handle("/auth/login/", handler.NewLoginHandler())
 	// http.Handle("/auth/login/asset/", http.StripPrefix("/auth/login/asset/", http.FileServer(http.Dir("asset/"))))
@@ -113,47 +133,53 @@ func main() {
 	// }
 	// assets := assetsFS.NewRequestHandler()
 
-	httpHandler := func(ctx *fasthttp.RequestCtx) {
-		log.Info("Request",
-			logger.String("Path", string(ctx.Path())),
-			logger.String("Method", string(ctx.Method())),
-		)
-		path := ctx.Path()
-		//switch string(ctx.Path()) {
-		switch {
-		case bytes.HasPrefix(path, []byte("/auth/login")):
-			authHandler.HandleRequest(ctx)
-		case bytes.HasPrefix(path, []byte("/auth/logout")):
-			logoutHandler.HandleRequest(ctx)
-		case bytes.HasPrefix(path, []byte("/identity/session")):
-			sessionHandler.HandleRequest(ctx)
-		case bytes.HasPrefix(path, []byte("/identity/login/")):
-			identityHandler.HandleRequest(ctx)
-		case bytes.HasPrefix(path, []byte("/identity")):
-			validateSessionHandler.HandleRequest(ctx)
-		// case bytes.HasPrefix(path, []byte("/auth/login/asset/")):
-		// 	ctx.URI().SetPathBytes(bytes.Replace(path, []byte("/auth/login"), []byte(""), -1))
-		// 	assets(ctx)
-		case bytes.HasPrefix(path, []byte("/api/")):
-			apiProxy.HandleRequest(ctx)
-		case bytes.HasPrefix(path, []byte("/web/")):
-			webProxy.HandleRequest(ctx)
-		default:
-			log.Infof("security.HandlerNotFound[Method=%v Path=%v]", string(ctx.Method()), string(path))
-			ctx.Error("404 - NotFound", fasthttp.StatusNotFound)
-		}
-		log.Info("Response",
-			logger.String("Path", string(ctx.Path())),
-			logger.String("Method", string(ctx.Method())),
-			logger.Int("Status", ctx.Response.StatusCode()),
-		)
-	}
+	// httpHandler := func(ctx *fasthttp.RequestCtx) {
+	// 	log.Info("Request",
+	// 		logger.String("Path", string(ctx.Path())),
+	// 		logger.String("Method", string(ctx.Method())),
+	// 	)
+	// 	path := ctx.Path()
+	// 	//switch string(ctx.Path()) {
+	// 	switch {
+	// 	case bytes.HasPrefix(path, []byte("/auth/login")):
+	// 		authHandler.HandleRequest(ctx)
+	// 	case bytes.HasPrefix(path, []byte("/auth/logout")):
+	// 		logoutHandler.HandleRequest(ctx)
+	// 	case bytes.HasPrefix(path, []byte("/identity/session")):
+	// 		sessionHandler.HandleRequest(ctx)
+	// 	case bytes.HasPrefix(path, []byte("/identity/login/")):
+	// 		identityHandler.HandleRequest(ctx)
+	// 	case bytes.HasPrefix(path, []byte("/identity")):
+	// 		validateSessionHandler.HandleRequest(ctx)
+	// 	// case bytes.HasPrefix(path, []byte("/auth/login/asset/")):
+	// 	// 	ctx.URI().SetPathBytes(bytes.Replace(path, []byte("/auth/login"), []byte(""), -1))
+	// 	// 	assets(ctx)
+	// 	case bytes.HasPrefix(path, []byte("/api/")):
+	// 		apiProxy.HandleRequest(ctx)
+	// 	case bytes.HasPrefix(path, []byte("/web/")):
+	// 		webProxy.HandleRequest(ctx)
+	// 	default:
+	// 		log.Infof("security.HandlerNotFound[Method=%v Path=%v]", string(ctx.Method()), string(path))
+	// 		ctx.Error("404 - NotFound", fasthttp.StatusNotFound)
+	// 	}
+	// 	log.Info("Response",
+	// 		logger.String("Path", string(ctx.Path())),
+	// 		logger.String("Method", string(ctx.Method())),
+	// 		logger.Int("Status", ctx.Response.StatusCode()),
+	// 	)
+	// }
 
-	fmt.Printf("SecurityStarting[Version=%s BindAddress=%s]\n", configuration.Version, configuration.Handler.BindAddress)
+	logger.Info("security.starting",
+		logger.String("Version", configuration.Version),
+		logger.String("BindAddress", configuration.Handler.BindAddress),
+	)
 	err = fasthttp.ListenAndServe(configuration.Handler.BindAddress, httpHandler)
 	if err != nil {
-		fmt.Printf("SecurityStartErr[Version=%s BindAddress=%s Message='%+v']", configuration.Version, configuration.Handler.BindAddress, err)
-		panic(err)
+		logger.Panic("security.Err",
+			logger.String("Version", configuration.Version),
+			logger.String("BindAddress", configuration.Handler.BindAddress),
+			logger.Err(err),
+		)
 	}
 
 	//for {

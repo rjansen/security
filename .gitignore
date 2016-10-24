@@ -11,3 +11,4 @@ tags
 /.vscode/
 *.pprof
 *.test
+nohup.out

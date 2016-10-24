@@ -2,17 +2,36 @@ package cassandra
 
 import (
 	"errors"
+	"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/security/config"
 	"fmt"
 	"github.com/gocql/gocql"
+	"github.com/matryer/resync"
+	"time"
 )
 
 //pool is a variable to hold the Cassandra Pool
 var (
-	log  logger.Logger
-	pool *CassandraPool
+	pool          *CassandraPool
+	once          resync.Once
+	configuration *Configuration
 )
+
+//Configuration holds Cassandra connections parameters
+type Configuration struct {
+	URL       string        `json:"url" mapstructure:"url"`
+	Keyspace  string        `json:"keyspace" mapstructure:"keyspace"`
+	Username  string        `json:"username" mapstructure:"username"`
+	Password  string        `json:"password" mapstructure:"password"`
+	NumConns  int           `json:"numConns" mapstructure:"numConns"`
+	KeepAlive time.Duration `json:"keepAliveDuration" mapstructure:"keepAliveDuration"`
+}
+
+func (c Configuration) String() string {
+	return fmt.Sprintf("cassandra.Configuration URL=%v Keyspace=%v Username=%v Password=%v NumConns=%d KeepAlive=%s",
+		c.URL, c.Keyspace, c.Username, c.Password, c.NumConns, c.KeepAlive,
+	)
+}
 
 //GetPool gets the singleton db pool reference.
 //You must call Setup before get the pool reference
@@ -24,77 +43,78 @@ func GetPool() (*CassandraPool, error) {
 }
 
 //Setup configures a poll for database connections
-func Setup(config config.CassandraConfig) error {
-	log = logger.GetLogger()
-	datasource := Datasource{
-		Username: config.Username,
-		Password: config.Password,
-		URL:      config.URL,
-		Keyspace: config.Keyspace,
+func Setup() error {
+	if err := config.UnmarshalKey("db.cassandra", &configuration); err != nil {
+		logger.Info("cassandra.GetConfigErr", logger.Err(err))
+		return err
 	}
-	pool = &CassandraPool{
-		MinCons:    5,
-		MaxCons:    10,
-		Datasource: datasource,
-	}
-	log.Info("ConfigCassandraDriver",
-		logger.String("Pool", pool.String()),
+	logger.Info("cassandra.ConfigDriver",
+		logger.String("configuration", configuration.String()),
 	)
-	cluster := gocql.NewCluster(pool.Datasource.URL)
+	cluster := gocql.NewCluster(configuration.URL)
+	cluster.NumConns = configuration.NumConns
+	cluster.SocketKeepalive = configuration.KeepAlive
 	cluster.ProtoVersion = 4
-	cluster.Keyspace = pool.Datasource.Keyspace
+	cluster.Keyspace = configuration.Keyspace
 	cluster.Authenticator = gocql.PasswordAuthenticator{
-		Username: pool.Datasource.Username,
-		Password: pool.Datasource.Password,
+		Username: configuration.Username,
+		Password: configuration.Password,
 	}
 
 	session, err := cluster.CreateSession()
 	if err != nil {
-		return fmt.Errorf("CreateSessionError[Message=%v]", err.Error())
+		return fmt.Errorf("cassandra.CreateSessionError message=%v", err.Error())
 	}
-	pool.Session = session
-	log.Info("CassandraDriverConfigured",
-		logger.String("Config", config.String()),
+	pool = &CassandraPool{
+		cluster: cluster,
+		session: session,
+	}
+	logger.Info("cassandra.DriverConfigured",
+		logger.String("config", configuration.String()),
 	)
 	return nil
 }
 
 //Close close the database pool
 func Close() error {
-	if pool == nil || pool.Session == nil {
+	if pool == nil || pool.cluster == nil {
 		return errors.New("SetupMustCalled: Message='You must call Setup with a CassandraBConfig before get a Cassandrapool reference')")
 	}
-	log.Info("CloseCassandraSession",
+	logger.Info("CloseCassandraSession",
 		logger.String("CassandraPool", pool.String()),
 	)
-	pool.Session.Close()
+	// pool.cluster.Close()
 	return nil
 }
 
 //CassandraPool controls how new gocql.Session will create and maintained
 type CassandraPool struct {
-	MinCons int
-	MaxCons int
-	Datasource
-	Session *gocql.Session
+	cluster *gocql.ClusterConfig
+	session *gocql.Session
 }
 
 func (c CassandraPool) String() string {
-	return fmt.Sprintf("CassandraPool MinCons=%v MaxCons=%v", c.MinCons, c.MaxCons)
+	return fmt.Sprintf("CassandraPool Configuration=%s ClusterIsNil=%t SessionIsNil=%t",
+		configuration.String(),
+		c.cluster == nil,
+		c.session == nil,
+	)
 }
 
 //GetConnection creates and returns a sql.DB reference
 func (c *CassandraPool) GetConnection() (*gocql.Session, error) {
-	if c == nil || c.Session == nil {
+	if c == nil || c.session == nil {
 		return nil, errors.New("SetupMustCalled: Message='You must call Setup with a CassandraConfig before get a Cassandrapool reference')")
 	}
-	if c.Session.Closed() {
-		return nil, errors.New("SessionIdClosed: Message='The Cassandra session is closed'")
+	if c.session.Closed() {
+		return nil, fmt.Errorf("cassandra.SessionIsClosedErr")
 	}
-	log.Debug("GetSession",
-		logger.String("CassandraPool", c.String()),
+	logger.Debug("cassandra.GetSession",
+		logger.String("Pool", c.String()),
+		logger.Bool("SessionIsNil", c.session == nil),
+		logger.Bool("SessionIsClosed", c.session.Closed()),
 	)
-	return c.Session, nil
+	return c.session, nil
 }
 
 //Datasource holds parameterts to create new sql.DB connections

@@ -3,6 +3,8 @@ package config
 import (
 	"farm.e-pedion.com/repo/cache"
 	"farm.e-pedion.com/repo/logger"
+	"farm.e-pedion.com/repo/security/client/cassandra"
+	"farm.e-pedion.com/repo/security/client/http"
 	"flag"
 	"fmt"
 	"github.com/spf13/viper"
@@ -40,15 +42,15 @@ func Setup() error {
 
 //Configuration holds all possible configurations structs
 type Configuration struct {
-	Version     string               `mapstructure:"version"`
-	Environment string               `mapstructure:"environment"`
-	Logger      logger.Configuration `mapstructure:"logger"`
-	Cache       cache.Configuration  `mapstructure:"cache"`
-	Cassandra   CassandraConfig      `mapstructure:"cassandra"`
-	HTTP        HTTPConfig           `mapstrucure:"http"`
-	Security    SecurityConfig       `mapstrucure:"security"`
-	Handler     HandlerConfig        `mapstructure:"handler"`
-	Proxy       ProxyConfig          `mapstrucure:"proxy"`
+	Version     string                  `mapstructure:"version"`
+	Environment string                  `mapstructure:"environment"`
+	Logger      logger.Configuration    `mapstructure:"logger"`
+	Cache       cache.Configuration     `mapstructure:"cache"`
+	Cassandra   cassandra.Configuration `mapstructure:"cassandra"`
+	HTTP        http.Configuration      `mapstrucure:"http"`
+	Security    SecurityConfig          `mapstrucure:"security"`
+	Handler     HandlerConfig           `mapstructure:"handler"`
+	Proxy       ProxyConfig             `mapstrucure:"proxy"`
 }
 
 func (c Configuration) String() string {

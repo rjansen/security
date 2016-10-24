@@ -14,22 +14,16 @@ import (
 )
 
 var (
-	log       logger.Logger
 	jwtKey    = []byte("321ewqdsa#@!")
 	jwtCrypto = crypto.SigningMethodHS512
 )
-
-func Setup() error {
-	log = logger.Get()
-	return nil
-}
 
 //NewSession creates a new session from JWT
 func NewSession(jwt jwt.JWT) (*Session, error) {
 	if jwt == nil {
 		return nil, errors.New("JWT is nil")
 	}
-	log.Debug("JWTSessionClaims",
+	logger.Debug("JWTSessionClaims",
 		logger.Struct("Claims", jwt.Claims()),
 	)
 	if !jwt.Claims().Has("iss") || !jwt.Claims().Has("id") || !jwt.Claims().Has("username") || !jwt.Claims().Has("roles") {

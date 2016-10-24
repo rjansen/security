@@ -14,10 +14,19 @@ import (
 	"farm.e-pedion.com/repo/logger"
 )
 
+/*
+security:
+    encrypt_cost: 10
+    cookie_name: "FIVECOLORS_ID"
+    cookie_domain: "darkside.e-pedion.com"
+    cookie_path: "/"
+    client_use_custom_ssl_certificate: false
+    custom_ssl_certificate_path: "/Users/raphaeljansen/Apps/Cert/startcom.sha2.root.ca.crt"
+*/
 var (
-	log            = logger.GetLogger()
-	certPool       *x509.CertPool
-	securityConfig = config.BindSecurityConfiguration()
+	certPool             *x509.CertPool
+	customSSLCertPathKey = "security.custom_ssl_certificate_path"
+	useCustomSSLCertKey  = "security.client_use_custom_ssl_certificate"
 )
 
 // NewUUID generates a random UUID according to RFC 4122
@@ -37,12 +46,13 @@ func NewUUID() (string, error) {
 //GetCertPool returns a tls certificate pool with the configured certificate inside it
 func GetCertPool() (*x509.CertPool, error) {
 	if certPool == nil {
-		certData, err := ioutil.ReadFile(securityConfig.CustomSSLCertificatePath)
+		// certData, err := ioutil.ReadFile(securityConfig.CustomSSLCertificatePath)
+		certData, err := ioutil.ReadFile(config.GetString(customSSLCertPathKey))
 		if err != nil {
 			return nil, err
 		}
-		log.Info("AppendCustomTLSCertificate",
-			logger.String("CertificatePath", securityConfig.CustomSSLCertificatePath),
+		logger.Info("AppendCustomTLSCertificate",
+			logger.String("CertificatePath", config.GetString(customSSLCertPathKey)),
 		)
 		certPool = x509.NewCertPool()
 		ok := certPool.AppendCertsFromPEM(certData)
@@ -55,7 +65,7 @@ func GetCertPool() (*x509.CertPool, error) {
 
 //GetTLSHttpClient returns a a tls transport http client
 func GetTLSHttpClient() (*http.Client, error) {
-	if securityConfig.UseCustomSSLCertificate {
+	if config.GetBool(useCustomSSLCertKey) {
 		tempCertPool, err := GetCertPool()
 		if err != nil {
 			return nil, err

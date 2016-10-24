@@ -25,32 +25,32 @@ func Authenticate(username string, password string) (*PublicSession, error) {
 		Client:   cassandraClient,
 	}
 	if err := login.Read(); err != nil {
-		log.Error("Authenticate.ReadLoginError",
+		logger.Error("Authenticate.ReadLoginError",
 			logger.String("Username", username),
-			logger.Error(err),
+			logger.Err(err),
 		)
 		return nil, err
 	}
 	if err := login.CheckCredentials(password); err != nil {
-		log.Error("Authenticate.CheckCredentialsError",
+		logger.Error("Authenticate.CheckCredentialsError",
 			logger.String("Username", username),
-			logger.Error(err),
+			logger.Err(err),
 		)
 		return nil, err
 	}
 	publicSessionID, err := util.NewUUID()
 	if err != nil {
-		log.Error("Authenticate.NewPublicSessionIDError",
+		logger.Error("Authenticate.NewPublicSessionIDError",
 			logger.String("Username", username),
-			logger.Error(err),
+			logger.Err(err),
 		)
 		return nil, err
 	}
 	sessionID, err := util.NewUUID()
 	if err != nil {
-		log.Error("Authenticate.NewSessionIDError",
+		logger.Error("Authenticate.NewSessionIDError",
 			logger.String("Username", username),
-			logger.Error(err),
+			logger.Err(err),
 		)
 		return nil, err
 	}
@@ -76,24 +76,24 @@ func Authenticate(username string, password string) (*PublicSession, error) {
 		}
 	}
 	if err := publicSession.Serialize(); err != nil {
-		log.Error("data.Authenticate.JWTSerializeError",
+		logger.Error("data.Authenticate.JWTSerializeError",
 			logger.String("Username", username),
-			logger.Error(err),
+			logger.Err(err),
 		)
 		return nil, err
 	}
 	if err := publicSession.Set(); err != nil {
-		log.Error("Authenticate.SetSessionError",
+		logger.Error("Authenticate.SetSessionError",
 			logger.String("Username", username),
-			logger.Error(err),
+			logger.Err(err),
 		)
 		return nil, err
 	}
-	log.Info("NewSession",
+	logger.Info("NewSession",
 		logger.String("Username", username),
 		logger.String("PublicID", publicSession.ID),
 		logger.String("PrivateID", publicSession.PrivateSession.ID),
-		logger.Error(err),
+		logger.Err(err),
 	)
 	return publicSession, nil
 }
@@ -113,7 +113,7 @@ func loginCallback(cookieName string, loginCallbackURL string, publicSession *Pu
 		"Authorization": fmt.Sprintf("%v: %q", cookieName, publicSession.PrivateSession.Token),
 		"Accept":        "application/json",
 	}
-	log.Debug("LoginCallbackRequest",
+	logger.Debug("LoginCallbackRequest",
 		logger.String("CallbackURL", loginCallbackURL),
 		logger.Bytes(cookieName, publicSession.Token),
 		logger.String("Username", publicSession.Username),
@@ -128,17 +128,17 @@ func loginCallback(cookieName string, loginCallbackURL string, publicSession *Pu
 		return fmt.Errorf("LoginCallbackInvalidStatusCode[Message='Bad status code: %v']", response.StatusCode())
 	}
 	bodyBytes := response.Body()
-	log.Debug("LoginCallbackResponse",
+	logger.Debug("LoginCallbackResponse",
 		logger.String("data", string(bodyBytes)),
 		logger.Int("ContentLength", response.ContentLength()),
 	)
 	loginData := make(map[string]interface{})
 	if err := json.Unmarshal(bodyBytes, &loginData); err != nil {
-		log.Error("UnmarshallCallbackDataErr", logger.Error(err))
+		logger.Error("UnmarshallCallbackDataErr", logger.Err(err))
 		return err
 	}
 	//delete(loginData, "username")
-	log.Info("LoginCallbackData", logger.Struct("Data", loginData))
+	logger.Info("LoginCallbackData", logger.Struct("Data", loginData))
 	publicSession.PrivateSession.Data = loginData
 	return nil
 }
@@ -171,6 +171,6 @@ func ReadSession(token []byte) (*PublicSession, error) {
 	if err := publicSession.Get(); err != nil {
 		return nil, err
 	}
-	log.Debug("ReadSession", logger.Struct("PublicSession", publicSession))
+	logger.Debug("ReadSession", logger.Struct("PublicSession", publicSession))
 	return publicSession, nil
 }

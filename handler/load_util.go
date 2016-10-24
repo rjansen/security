@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"encoding/json"
+	"context"
 	//"fmt"
 	//"net/http"
 	//"regexp"
@@ -9,6 +9,8 @@ import (
 	//"time"
 
 	//"farm.e-pedion.com/repo/config"
+	ctxFast "farm.e-pedion.com/repo/context/fasthttp"
+	"farm.e-pedion.com/repo/context/media"
 	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/security/client/cassandra"
 	"farm.e-pedion.com/repo/security/data"
@@ -17,117 +19,114 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func NewLoadTestHandler() *LoadTestHandler {
-	return &LoadTestHandler{
-		Get: &LoadGetTestHandler{
-			client: cassandra.NewClient(),
-		},
-		Post: &LoadPostTestHandler{},
+func WithClient(handler ctxFast.HTTPHandlerFunc) ctxFast.HTTPHandlerFunc {
+	return func(c context.Context, fc *fasthttp.RequestCtx) error {
+		ctxClient := cassandra.SetClient(c)
+		return handler(ctxClient, fc)
 	}
 }
 
+func NewLoadTestHandler() ctxFast.HTTPHandlerFunc {
+	handler := &LoadTestHandler{
+		Get:  ctxFast.Log(ctxFast.Error(WithClient(LoadGetTestHandler))),
+		Post: ctxFast.Log(ctxFast.Error(WithClient(LoadPostTestHandler))),
+	}
+	return handler.HandleRequest
+}
+
+//LoadTestHandler is the handler for load test purposes
 type LoadTestHandler struct {
-	Get  *LoadGetTestHandler
-	Post *LoadPostTestHandler
+	Get  ctxFast.HTTPHandlerFunc
+	Post ctxFast.HTTPHandlerFunc
 }
 
-type LoadGetTestHandler struct {
-	client cassandra.Client
-}
-
-func (h *LoadGetTestHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
-	if !ctx.IsGet() {
-		ctx.Error("405 - MethodNotAllowed", fasthttp.StatusMethodNotAllowed)
-		return
+//HandleRequest is the load test router
+func (h LoadTestHandler) HandleRequest(c context.Context, fc *fasthttp.RequestCtx) error {
+	switch {
+	case fc.IsGet():
+		return h.Get(c, fc)
+	case fc.IsPost(), fc.IsPut():
+		return h.Post(c, fc)
+	//case fc.IsDelete():
+	//	loadTestHandler.Delete.HandleRequest(fc)
+	default:
+		logger.Info("LoadGetTestHandler.Request",
+			logger.Bytes("Method", fc.Method()),
+			logger.String("URI", fc.URI().String()),
+			logger.String("message", "405 - MethodNotAllowed"),
+		)
+		return ctxFast.Status(fc, fasthttp.StatusMethodNotAllowed)
 	}
-	log.Info("LoadGetTestHandler.Request",
-		logger.Bytes("Method", ctx.Method()),
-		logger.String("URI", ctx.URI().String()),
+}
+
+//LoadGetTestHandler is the function to handle the find load test
+func LoadGetTestHandler(c context.Context, fc *fasthttp.RequestCtx) error {
+	if !fc.IsGet() {
+		return ctxFast.Status(fc, fasthttp.StatusMethodNotAllowed)
+	}
+	identifier := string(fc.URI().LastPathSegment())
+	logger.Info("LoadGetTestHandler.Request",
+		logger.Bytes("Method", fc.Method()),
+		logger.String("URI", fc.URI().String()),
+		logger.String("query", identifier),
 	)
-	identifier := string(ctx.URI().LastPathSegment())
+
+	client, getClientErr := cassandra.GetClient(c)
+	if getClientErr != nil {
+		logger.Error("LoadGetTestHandler.GetClientNotFound",
+			logger.String("query", identifier),
+			logger.Err(getClientErr),
+		)
+		return ctxFast.Err(fc, getClientErr)
+	}
 
 	login := data.Login{
-		Client:   h.client,
+		Client:   client,
 		Username: identifier,
 		Name:     "Load Get TestHandler das Couves",
 		Password: "dummypwd",
 		Roles:    []string{"role1", "role2", "role3", "roleN"},
 	}
+
 	if err := login.Read(); err != nil {
-		log.Error("ReadLoginError ",
+		logger.Error("LoadGetTestHandler.ReadLoginError",
 			logger.String("Username", identifier),
-			logger.Error(err),
+			logger.Err(err),
 		)
 		if err == data.NotFoundErr {
-			ctx.Error("404 - NotFound", fasthttp.StatusNotFound)
-			return
+			return ctxFast.Status(fc, fasthttp.StatusNotFound)
 		}
-		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
-		return
+		return ctxFast.Err(fc, err)
 	}
 
-	err := json.NewEncoder(ctx).Encode(login)
-	if err != nil {
-		log.Error("handler.GetLoginHandler.WriteResponseError",
-			logger.String("Username", login.Username),
-			logger.Error(err),
-		)
-		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
-		return
-	}
-
-	ctx.SetContentType("application/json; charset=utf-8")
-	ctx.SetStatusCode(fasthttp.StatusOK)
-	log.Info("LoadGetTestHandler.Response",
-		logger.String("Content-Type", "application/json; charset=utf-8"),
-		logger.Int("Status", fasthttp.StatusOK),
-	)
+	return ctxFast.JSON(fc, fasthttp.StatusOK, login)
 }
 
-type LoadPostTestHandler struct {
-}
-
-func (h *LoadPostTestHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
-	if !ctx.IsPost() && ctx.IsPut() {
-		ctx.Error("405 - MethodNotAllowed", fasthttp.StatusMethodNotAllowed)
-		return
+//LoadPostTestHandler is the function to handle the post load test
+func LoadPostTestHandler(container context.Context, fc *fasthttp.RequestCtx) error {
+	if !fc.IsPost() && fc.IsPut() {
+		return ctxFast.Status(fc, fasthttp.StatusMethodNotAllowed)
 	}
-	log.Debug("LoadPostTestHandler.Request",
-		logger.Bytes("Method", ctx.Method()),
-		logger.String("URI", ctx.URI().String()),
+	logger.Info("LoadPostTestHandler.Request",
+		logger.Bytes("Method", fc.Method()),
+		logger.String("URI", fc.URI().String()),
+		logger.Int("bodyLen", len(fc.PostBody())),
 	)
 	var login data.Login
-	err := json.Unmarshal(ctx.PostBody(), &login)
-	if err != nil {
-		log.Error("handler.LoadPostTestHandler.ReadRequestErr",
-			logger.String("Username", login.Username),
-			logger.Bytes("Body", ctx.PostBody()),
-			logger.Error(err),
+	if err := media.FromJSONBytes(fc.PostBody(), &login); err != nil {
+		logger.Error("handler.LoadPostTestHandler.ReadRequestErr",
+			logger.Bytes("Body", fc.PostBody()),
+			logger.Err(err),
 		)
-		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
-		return
+		return ctxFast.Err(fc, err)
 	}
 	login.Password = "dummypwd"
+
 	// if err := login.Write(); err != nil {
-	// 	log.Errorf("ReadLoginError[Username=%v Message='%v']", username, err)
-	// 	ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
+	// 	logger.Errorf("ReadLoginError[Username=%v Message='%v']", username, err)
+	// 	fc.Error(err.Error(), fasthttp.StatusInternalServerError)
 	// 	return
 	// }
 
-	err = json.NewEncoder(ctx).Encode(login)
-	if err != nil {
-		log.Error("handler.LoadPostTestHandler.WriteResponseError",
-			logger.Struct("data.Login", login),
-			logger.Error(err),
-		)
-		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
-		return
-	}
-
-	ctx.SetContentType("application/json; charset=utf-8")
-	ctx.SetStatusCode(fasthttp.StatusCreated)
-	log.Debug("LoadPostTestHandler.Response",
-		logger.String("Content-Type", "application/json; charset=utf-8"),
-		logger.Int("Status", fasthttp.StatusCreated),
-	)
+	return ctxFast.JSON(fc, fasthttp.StatusCreated, login)
 }

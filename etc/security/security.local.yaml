@@ -1,12 +1,12 @@
-version: "getBenchmark_0.0.1-young"
-environment: "test"
+version: "0.0.1-young"
+environment: "local"
 
 logger:
     root:
         debug: false
         provider: "logrus"
-        level: "debug"
-        format: "text"
+        level: "panic"
+        format: "text_color"
         out: "stdout"
     access:
         provider: "logrus"

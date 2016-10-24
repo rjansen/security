@@ -1,6 +1,7 @@
 package cassandra
 
 import (
+	"context"
 	"errors"
 	"farm.e-pedion.com/repo/logger"
 	"fmt"
@@ -9,8 +10,22 @@ import (
 )
 
 var (
-	NotFoundErr = gocql.ErrNotFound
+	NotFoundErr        = gocql.ErrNotFound
+	CassandraClientKey = "cassandra.Client"
+	ClientNotFoundErr  = errors.New("cassandra.ClientNotFoundErr message='Cassandra client does not found at context'")
 )
+
+func GetClient(c context.Context) (Client, error) {
+	client, found := c.Value(CassandraClientKey).(Client)
+	if !found {
+		return nil, ClientNotFoundErr
+	}
+	return client, nil
+}
+
+func SetClient(c context.Context) context.Context {
+	return context.WithValue(c, CassandraClientKey, NewClient())
+}
 
 type dbObject struct {
 	//session is a transient pointer to database connection
@@ -106,13 +121,13 @@ func (i *ExecSupport) Exec(cql string, params ...interface{}) error {
 	defer i.Release()
 	err := i.session.Query(cql, params...).Exec()
 	if err != nil {
-		log.Error("CQLExecutionFalied",
+		logger.Error("CQLExecutionFalied",
 			logger.String("CQL", cql),
 			logger.Struct("Parameters", params),
 		)
 		return err
 	}
-	log.Debug("CQLExecutedSuccessfully",
+	logger.Debug("CQLExecutedSuccessfully",
 		logger.String("CQL", cql),
 		logger.Struct("Parameters", params),
 	)
@@ -121,10 +136,7 @@ func (i *ExecSupport) Exec(cql string, params ...interface{}) error {
 
 //NewClient creates a new instance of the CQLClient
 func NewClient() Client {
-	return &CQLClient{
-		QuerySupport: QuerySupport{},
-		ExecSupport:  ExecSupport{},
-	}
+	return new(CQLClient)
 }
 
 //CQLClient adds full query and exec support fot the struct
