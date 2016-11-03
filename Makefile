@@ -110,10 +110,20 @@ docker: build_linux
 	docker create -it -p 127.0.0.1:6379:6379 --name redis rjansen/redis
 	docker create -it -p 127.0.0.1:8080:8080 --name security rjansen/security
 
+.PHONY: protoc
+protoc:
+	@echo "Protocol Buffer Generating Proto@$(VERSION)-$(BUILD)"
+	protoc --go_out=./ ./view/*.proto
+	protoc --go_out=./ ./identity/*.proto
+
+.PHONY: qtc
+qtc:
+	@echo "Quick Template Generating QTC@$(VERSION)-$(BUILD)"
+	qtc
+
 .PHONY: build
-build:
+build: protoc qtc
 	@echo "Building $(REPO)@$(VERSION)-$(BUILD)"
-	qtc 
 	go build $(REPO)
 
 .PHONY: build_linux
@@ -186,7 +196,9 @@ test:
 	fi
 
 .PHONY: bench
-bench: up_cassandra run_cql up_mongo run_mongo up_mysql run_mysql benchmark down_cassandra down_mongo down_mysql 
+ bench: up_cassandra run_cql up_mongo run_mongo benchmark
+#  bench: up_cassandra run_cql up_mongo run_mongo benchmark down_cassandra down_mongo
+# bench: up_cassandra run_cql up_mongo run_mongo up_mysql run_mysql benchmark down_cassandra down_mongo down_mysql 
 
 .PHONY: benchmark_all
 benchmark_all:
@@ -252,9 +264,12 @@ down_test:
 
 .PHONY: up_cassandra
 up_cassandra:
-	@echo "Up cassandra" 
-	nohup cassandra -p cassandra.pid
-	sleep 30
+	@if [ ! -f cassandra.pid ]; then \
+		echo "Up cassandra" ;\
+		nohup cassandra -p cassandra.pid ;\
+		echo "Sleep 30s" ;\
+		sleep 30 ;\
+	fi
 	@echo "Dropping cassandra schema" 
 	-cqlsh -u $(DB_USER) -p $(DB_PWD) -k $(DB_CATALOG) -f $(CASSANDRA_DROP_SCHEMA_FILE)
 	-cqlsh -u cassandra -p cassandra -f $(CASSANDRA_DROP_KEY_FILE)
@@ -268,7 +283,9 @@ down_cassandra:
 	-cqlsh -u $(DB_USER) -p $(DB_PWD) -k $(DB_CATALOG) -f $(CASSANDRA_DROP_SCHEMA_FILE)
 	-cqlsh -u cassandra -p cassandra -f $(CASSANDRA_DROP_KEY_FILE)
 	@echo "Down cassandra" 
-	kill `cat cassandra.pid` && rm cassandra.pid nohup.out
+	kill `cat cassandra.pid` 
+	sleep 5
+	-rm cassandra.pid
 
 .PHONY: run_cql
 run_cql:
@@ -278,9 +295,12 @@ run_cql:
 
 .PHONY: up_mongo
 up_mongo:
-	@echo "Up mongo" 
-	mongod --config /usr/local/etc/mongod.conf & echo $$! > mongo.pid	
-	sleep 30
+	@if [ ! -f mongo.pid ]; then \
+		echo "Up mongo" ;\
+		{ nohup mongod --config /usr/local/etc/mongod.conf --pidfilepath mongo.pid & } ;\
+		echo "Sleep 10s" ;\
+		sleep 10 ;\
+	fi
 	@echo "Dropping mongo schema" 
 	-mongo $(DB_CATALOG) -u $(DB_USER) -p $(DB_PWD) $(MONGO_DROP_SCHEMA_FILE)
 	-mongo admin -u admin -p mongo < $(MONGO_DROP_DB_FILE)
@@ -294,7 +314,9 @@ down_mongo:
 	-mongo $(DB_CATALOG) -u $(DB_USER) -p $(DB_PWD) $(MONGO_DROP_SCHEMA_FILE)
 	mongo admin -u admin -p mongo < $(MONGO_DROP_DB_FILE)
 	@echo "Down mongo" 
-	kill `cat mongo.pid` && rm mongo.pid
+	kill `cat mongo.pid`
+	sleep 5
+	-rm mongo.pid
 
 .PHONY: run_mongo
 run_mongo:

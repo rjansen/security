@@ -1,0 +1,19 @@
+syntax = "proto3";
+package view;
+
+message Session {
+    string id = 1;
+    string username = 2;
+    string issuer = 3;
+    int64 createdAt = 4;
+    int64 ttl = 5;
+    int64 expiresAt = 6;
+    bytes data = 7;
+}
+
+message Login {
+  string username = 1;
+  string name = 2;
+  string password = 3;
+  repeated string roles = 4; 
+}

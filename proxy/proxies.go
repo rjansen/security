@@ -46,13 +46,15 @@ func (a *ApiReverseProxy) HandleRequest(ctx *fasthttp.RequestCtx) {
 		req.SetRequestURI(pathRegex.ReplaceAllString(requestedPath, ""))
 	}
 	//Creates a JWT to proxy the request
-	privateSession := a.GetSession().PrivateSession
-	if err := privateSession.Serialize(); err != nil {
+	session := a.GetSession()
+	token, err := session.Serialize()
+	if err != nil {
+		logger.Error("ErrSerializingSession", logger.String("session", session.String()))
 		return
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("%v: %v", a.SecurityConfig.CookieName, string(privateSession.Token)))
+	req.Header.Set("Authorization", fmt.Sprintf("%s: %s", a.SecurityConfig.CookieName, token))
 	logger.Debug("HeaderAuthorizationFoward",
-		logger.String(a.SecurityConfig.CookieName, privateSession.ID),
+		logger.String(a.SecurityConfig.CookieName, session.ID),
 		logger.String("Requested", a.ProxyURL.String()),
 		logger.Bytes("Foward", req.RequestURI()),
 	)
@@ -71,14 +73,17 @@ func (a *ApiReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		r.URL.Path = pathRegex.ReplaceAllString(r.URL.Path, "")
 	}
 	//Creates a JWT to proxy the request
-	privateSession := a.GetSession().PrivateSession
-	if err := privateSession.Serialize(); err != nil {
+	session := a.GetSession()
+	token, err := session.Serialize()
+	if err != nil {
+		logger.Error("ErrSerializingSession", logger.String("session", session.String()))
 		return
 	}
+
 	//r.SetBasicAuth(a.session.Username, a.session.ID)
-	r.Header.Set("Authorization", fmt.Sprintf("%v: %v", a.SecurityConfig.CookieName, string(privateSession.Token)))
+	r.Header.Set("Authorization", fmt.Sprintf("%s: %s", a.SecurityConfig.CookieName, token))
 	logger.Debug("HeaderAuthorizationFoward",
-		logger.String(a.SecurityConfig.CookieName, privateSession.ID),
+		logger.String(a.SecurityConfig.CookieName, session.ID),
 		logger.String("Requested", requestedPath),
 		logger.String("Foward", a.ProxyURL.String()+r.URL.Path),
 	)
@@ -113,22 +118,24 @@ func (a *WebReverseProxy) HandleRequest(ctx *fasthttp.RequestCtx) {
 		req.SetRequestURI(pathRegex.ReplaceAllString(requestedPath, ""))
 	}
 	//Creates a JWT to proxy the request
-	privateSession := a.GetSession().PrivateSession
-	if err := privateSession.Serialize(); err != nil {
+	session := a.GetSession()
+	token, err := session.Serialize()
+	if err != nil {
+		logger.Error("ErrSerializingSession", logger.String("session", session.String()))
 		return
 	}
 
 	var cookie fasthttp.Cookie
 	cookie.SetKey(a.SecurityConfig.CookieName)
-	cookie.SetValueBytes(privateSession.Token)
+	cookie.SetValueBytes(token)
 	//cookie.SetDomain(l.SecurityConfig.CookieDomain)
 	cookie.SetPath(a.SecurityConfig.CookiePath)
-	cookie.SetExpire(privateSession.Expires)
+	cookie.SetExpire(session.ExpiresAt)
 
 	req.Header.SetCookie(a.SecurityConfig.CookieName, cookie.String())
 	//req.Header.Set(fmt.Sprintf("X-%v", a.SecurityConfig.CookieName), string(privateSession.Token))
 	logger.Debug("CookieAuthFoward",
-		logger.String(a.SecurityConfig.CookieName, privateSession.ID),
+		logger.String(a.SecurityConfig.CookieName, session.ID),
 		logger.String("Requested", requestedPath),
 		logger.Bytes("Foward", append([]byte(a.ProxyURL.String()), 'c')),
 	)
@@ -146,25 +153,27 @@ func (a *WebReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if matchs := pathRegex.MatchString(r.URL.Path); matchs {
 		r.URL.Path = pathRegex.ReplaceAllString(r.URL.Path, "")
 	}
-	privateSession := a.GetSession().PrivateSession
-	if err := privateSession.Serialize(); err != nil {
+	session := a.GetSession()
+	token, err := session.Serialize()
+	if err != nil {
+		logger.Error("ErrSerializingSession", logger.String("session", session.String()))
 		return
 	}
 	cookie := &http.Cookie{
 		Name:    a.SecurityConfig.CookieName,
-		Value:   string(privateSession.Token),
+		Value:   string(token),
 		Domain:  a.SecurityConfig.CookieDomain,
 		Path:    a.SecurityConfig.CookiePath,
-		Expires: privateSession.Expires,
+		Expires: session.ExpiresAt,
 	}
 	//http.SetCookie(w, cookie)
 	r.AddCookie(cookie)
 	//r.Header.Set("Authorization", fmt.Sprintf("%v: %v", a.SecurityConfig.CookieName, privateSession.Token))
-	w.Header().Set(fmt.Sprintf("X-%v", a.SecurityConfig.CookieName), string(privateSession.Token))
+	w.Header().Set(fmt.Sprintf("X-%s", a.SecurityConfig.CookieName), string(token))
 
 	//Creates a JWT to proxy the request
 	logger.Debug("CookieAuthFoward",
-		logger.String(a.SecurityConfig.CookieName, privateSession.ID),
+		logger.String(a.SecurityConfig.CookieName, session.ID),
 		logger.String("Requested", requestedPath),
 		logger.String("Foward", a.ProxyURL.String()+r.URL.Path),
 	)

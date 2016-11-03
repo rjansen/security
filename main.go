@@ -8,12 +8,12 @@ import (
 	myCtx "farm.e-pedion.com/repo/context"
 	// ctxFast "farm.e-pedion.com/repo/context/fasthttp"
 	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/security/client/cassandra"
+	"farm.e-pedion.com/repo/security/client/db/cassandra"
 	localConfig "farm.e-pedion.com/repo/security/config"
 	// "farm.e-pedion.com/repo/security/client/http"
 	// "farm.e-pedion.com/repo/security/config"
-	"farm.e-pedion.com/repo/security/data"
 	"farm.e-pedion.com/repo/security/handler"
+	"farm.e-pedion.com/repo/security/model"
 	// "farm.e-pedion.com/repo/security/proxy"
 	"github.com/valyala/fasthttp"
 	// "net/url"
@@ -25,10 +25,10 @@ func init() {
 	errs := myCtx.Setup(
 		cassandra.Setup,
 		cache.Setup,
-		data.Setup,
+		model.Setup,
 	)
 	if errs != nil {
-		logger.Panic("security.main.initErr ", logger.Struct("errs", errs))
+		logger.Panic("security.main.initErr", logger.Struct("errs", errs))
 	}
 }
 

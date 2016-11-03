@@ -3,25 +3,21 @@ package handler
 import (
 	"bytes"
 	"context"
-	"farm.e-pedion.com/repo/security/client/cassandra"
-	"farm.e-pedion.com/repo/security/client/mongo"
-	"farm.e-pedion.com/repo/security/data"
+	"farm.e-pedion.com/repo/security/client/db/cassandra"
+	"farm.e-pedion.com/repo/security/client/db/mongo"
+	data "farm.e-pedion.com/repo/security/model"
+	// "fmt"
 	"github.com/gocql/gocql"
 	"github.com/stretchr/testify/assert"
 	"github.com/valyala/fasthttp"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"os"
+	// "os"
 	"strconv"
 	"testing"
 )
 
-var (
-	testArgs = os.Args
-)
-
 func BenchmarkGetTestHandler(b *testing.B) {
-	os.Args = append(testArgs, "-ecf", "../test/etc/security/getBenchmark.yaml")
 	assert.Nil(b, cassandra.Setup())
 	testHandler := NewLoadTestHandler()
 	assert.NotNil(b, testHandler)
@@ -31,10 +27,11 @@ func BenchmarkGetTestHandler(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		var ctx fasthttp.RequestCtx
 		var req fasthttp.Request
+		req.Header.SetMethod("GET")
 		for pb.Next() {
 			times++
 			// username := "user" + strconv.Itoa(times)
-			username := "darkside"
+			username := "makefile1"
 			req.SetRequestURI("http://test/" + username)
 			ctx.Init(&req, nil, nil)
 			c := context.Background()
@@ -49,7 +46,6 @@ func BenchmarkGetTestHandler(b *testing.B) {
 }
 
 func BenchmarkPostTestHandler(b *testing.B) {
-	os.Args = append(testArgs, "-ecf", "../test/etc/security/getBenchmark.yaml")
 	testHandler := NewLoadTestHandler()
 
 	var times int
@@ -57,6 +53,7 @@ func BenchmarkPostTestHandler(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		var ctx fasthttp.RequestCtx
 		var req fasthttp.Request
+		req.Header.SetMethod("POST")
 		for pb.Next() {
 			times++
 			username := "user" + strconv.Itoa(times)
@@ -75,7 +72,6 @@ func BenchmarkPostTestHandler(b *testing.B) {
 }
 
 func BenchmarkCassandraRead(b *testing.B) {
-	os.Args = append(testArgs, "-ecf", "../test/etc/security/getBenchmark.yaml")
 	config := cassandra.Configuration{
 		URL:      "127.0.0.1:9042",
 		Keyspace: "fivecolors_test",
@@ -118,8 +114,6 @@ func BenchmarkCassandraRead(b *testing.B) {
 }
 
 func BenchmarkMongoRead(b *testing.B) {
-	os.Args = append(testArgs, "-ecf", "../test/etc/security/getBenchmark.yaml")
-
 	config := mongo.Configuration{
 		URL:      "127.0.0.1:27017",
 		Database: "fivecolors_test",

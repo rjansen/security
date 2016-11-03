@@ -1,20 +1,21 @@
-package http
+package fast
 
 import (
+	"farm.e-pedion.com/repo/security/client/http"
 	"github.com/valyala/bytebufferpool"
 	"github.com/valyala/fasthttp"
 )
 
 type FastHTTPRequest struct {
-	method        Method
+	method        http.Method
 	url           string
 	headers       map[string]string
-	contentType   ContentType
+	contentType   http.ContentType
 	contentLength int
 	body          []byte
 }
 
-func (r *FastHTTPRequest) Method() Method {
+func (r *FastHTTPRequest) Method() http.Method {
 	return r.method
 }
 
@@ -26,7 +27,7 @@ func (r *FastHTTPRequest) Headers() map[string]string {
 	return r.headers
 }
 
-func (r *FastHTTPRequest) ContentType() ContentType {
+func (r *FastHTTPRequest) ContentType() http.ContentType {
 	return r.contentType
 }
 
@@ -41,7 +42,7 @@ func (r *FastHTTPRequest) Body() []byte {
 type FastHTTPResponse struct {
 	statusCode    int
 	headers       map[string]string
-	contentType   ContentType
+	contentType   http.ContentType
 	contentLength int
 	body          []byte
 }
@@ -54,7 +55,7 @@ func (r *FastHTTPResponse) Headers() map[string]string {
 	return r.headers
 }
 
-func (r *FastHTTPResponse) ContentType() ContentType {
+func (r *FastHTTPResponse) ContentType() http.ContentType {
 	return r.contentType
 }
 
@@ -66,10 +67,10 @@ func (r *FastHTTPResponse) Body() []byte {
 	return r.body
 }
 
-func NewFastHTTPClient() Client {
+func NewFastHTTPClient() http.Client {
 	return &FastHTTPClient{
 		client: &fasthttp.Client{
-			MaxConnsPerHost: maxConnxPerHost,
+			MaxConnsPerHost: http.Config.MaxConnsPerHost,
 		},
 	}
 }
@@ -78,19 +79,19 @@ type FastHTTPClient struct {
 	client *fasthttp.Client
 }
 
-func (c *FastHTTPClient) do(request Request) (Response, error) {
+func (c *FastHTTPClient) do(request http.Request) (http.Response, error) {
 	req, res := c.acquire()
 	defer c.release(req, res)
 	req.Header.SetMethodBytes(request.Method().Bytes())
 	req.SetRequestURI(request.URL())
 	bodyLen := len(request.Body())
-	if request.Method() != GET && request.Method() != HEAD && bodyLen > 0 {
+	if request.Method() != http.GET && request.Method() != http.HEAD && bodyLen > 0 {
 		req.SetBody(request.Body())
 	}
 	for k, v := range request.Headers() {
 		req.Header.Set(k, v)
 	}
-	if err := c.client.DoTimeout(req, res, requestTimeout); err != nil {
+	if err := c.client.DoTimeout(req, res, http.Config.RequestTimeout); err != nil {
 		return nil, err
 	}
 	responseHeaders := make(map[string]string)
@@ -100,18 +101,18 @@ func (c *FastHTTPClient) do(request Request) (Response, error) {
 	var bodyBytes []byte
 	if res.Header.ContentLength() > 0 {
 		bodyBuffer := bytebufferpool.Get()
+		defer bytebufferpool.Put(bodyBuffer)
 		err := res.BodyWriteTo(bodyBuffer)
 		if err != nil {
 			return nil, err
 		}
 		bodyBytes = bodyBuffer.B
-		bytebufferpool.Put(bodyBuffer)
 	}
 	httpResponse := &FastHTTPResponse{
 		statusCode:    res.StatusCode(),
 		headers:       responseHeaders,
 		contentLength: res.Header.ContentLength(),
-		contentType:   ContentType(res.Header.ContentType()),
+		contentType:   http.ContentType(res.Header.ContentType()),
 		body:          bodyBytes,
 	}
 	return httpResponse, nil
@@ -126,7 +127,7 @@ func (c *FastHTTPClient) release(req *fasthttp.Request, res *fasthttp.Response) 
 	fasthttp.ReleaseResponse(res)
 }
 
-func (c FastHTTPClient) Request(method Method, url string, body []byte, headers map[string]string) (Response, error) {
+func (c FastHTTPClient) Request(method http.Method, url string, body []byte, headers map[string]string) (http.Response, error) {
 	httpRequest := &FastHTTPRequest{
 		method:  method,
 		url:     url,
@@ -136,9 +137,9 @@ func (c FastHTTPClient) Request(method Method, url string, body []byte, headers 
 	return c.do(httpRequest)
 }
 
-func (c *FastHTTPClient) HEAD(url string, headers map[string]string) (Response, error) {
+func (c *FastHTTPClient) HEAD(url string, headers map[string]string) (http.Response, error) {
 	httpRequest := &FastHTTPRequest{
-		method:        HEAD,
+		method:        http.HEAD,
 		url:           url,
 		headers:       headers,
 		contentLength: 0,
@@ -146,9 +147,9 @@ func (c *FastHTTPClient) HEAD(url string, headers map[string]string) (Response, 
 	return c.do(httpRequest)
 }
 
-func (c FastHTTPClient) GET(url string, headers map[string]string) (Response, error) {
+func (c FastHTTPClient) GET(url string, headers map[string]string) (http.Response, error) {
 	httpRequest := &FastHTTPRequest{
-		method:        GET,
+		method:        http.GET,
 		url:           url,
 		headers:       headers,
 		contentLength: 0,
@@ -156,9 +157,9 @@ func (c FastHTTPClient) GET(url string, headers map[string]string) (Response, er
 	return c.do(httpRequest)
 }
 
-func (c FastHTTPClient) POST(url string, body []byte, headers map[string]string) (Response, error) {
+func (c FastHTTPClient) POST(url string, body []byte, headers map[string]string) (http.Response, error) {
 	httpRequest := &FastHTTPRequest{
-		method:  POST,
+		method:  http.POST,
 		url:     url,
 		body:    body,
 		headers: headers,
@@ -166,9 +167,9 @@ func (c FastHTTPClient) POST(url string, body []byte, headers map[string]string)
 	return c.do(httpRequest)
 }
 
-func (c FastHTTPClient) PUT(url string, body []byte, headers map[string]string) (Response, error) {
+func (c FastHTTPClient) PUT(url string, body []byte, headers map[string]string) (http.Response, error) {
 	httpRequest := &FastHTTPRequest{
-		method:  PUT,
+		method:  http.PUT,
 		url:     url,
 		body:    body,
 		headers: headers,
@@ -176,9 +177,9 @@ func (c FastHTTPClient) PUT(url string, body []byte, headers map[string]string) 
 	return c.do(httpRequest)
 }
 
-func (c FastHTTPClient) DELETE(url string, body []byte, headers map[string]string) (Response, error) {
+func (c FastHTTPClient) DELETE(url string, body []byte, headers map[string]string) (http.Response, error) {
 	httpRequest := &FastHTTPRequest{
-		method:  DELETE,
+		method:  http.DELETE,
 		url:     url,
 		body:    body,
 		headers: headers,

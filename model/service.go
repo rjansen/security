@@ -1,25 +1,20 @@
-package data
+package model
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/security/client/http"
+	"farm.e-pedion.com/repo/security/client/http/fast"
 	"farm.e-pedion.com/repo/security/identity"
 	"farm.e-pedion.com/repo/security/util"
 	"github.com/SermoDigital/jose/jws"
 	"golang.org/x/crypto/bcrypt"
 )
 
-var (
-	httpClient http.Client
-)
-
 //Authenticate loads the login representation and check his credentials
-func Authenticate(username string, password string) (*PublicSession, error) {
+func Authenticate(username string, password string) (*Session, error) {
 	login := &Login{
 		Username: username,
 		Client:   cassandraClient,
@@ -38,7 +33,7 @@ func Authenticate(username string, password string) (*PublicSession, error) {
 		)
 		return nil, err
 	}
-	publicSessionID, err := util.NewUUID()
+	sessionID, err := util.NewUUID()
 	if err != nil {
 		logger.Error("Authenticate.NewPublicSessionIDError",
 			logger.String("Username", username),
@@ -46,43 +41,22 @@ func Authenticate(username string, password string) (*PublicSession, error) {
 		)
 		return nil, err
 	}
-	sessionID, err := util.NewUUID()
-	if err != nil {
-		logger.Error("Authenticate.NewSessionIDError",
-			logger.String("Username", username),
-			logger.Err(err),
-		)
-		return nil, err
-	}
 	expires := time.Now().Add(day)
-	publicSession := &PublicSession{
-		Client:   cacheClient,
-		Issuer:   "e-pedion.com",
-		ID:       publicSessionID,
-		Username: login.Username,
-		PrivateSession: &identity.Session{
-			Issuer:     "security.e-pedion.com",
-			ID:         sessionID,
-			Username:   login.Username,
-			Roles:      login.Roles,
-			CreateDate: time.Now(),
-			TTL:        day,
-			Expires:    expires,
-		},
+	session := &Session{
+		Client:    cacheClient,
+		ID:        sessionID,
+		Issuer:    "e-pedion.com",
+		Username:  login.Username,
+		CreatedAt: time.Now(),
+		TTL:       day,
+		ExpiresAt: expires,
 	}
 	if proxyConfig.UseLoginCallback {
-		if err := loginCallback(securityConfig.CookieName, proxyConfig.LoginCallbackURL, publicSession); err != nil {
+		if err := loginCallback(securityConfig.CookieName, proxyConfig.LoginCallbackURL, session); err != nil {
 			return nil, err
 		}
 	}
-	if err := publicSession.Serialize(); err != nil {
-		logger.Error("data.Authenticate.JWTSerializeError",
-			logger.String("Username", username),
-			logger.Err(err),
-		)
-		return nil, err
-	}
-	if err := publicSession.Set(); err != nil {
+	if err := session.Set(); err != nil {
 		logger.Error("Authenticate.SetSessionError",
 			logger.String("Username", username),
 			logger.Err(err),
@@ -90,34 +64,47 @@ func Authenticate(username string, password string) (*PublicSession, error) {
 		return nil, err
 	}
 	logger.Info("NewSession",
-		logger.String("Username", username),
-		logger.String("PublicID", publicSession.ID),
-		logger.String("PrivateID", publicSession.PrivateSession.ID),
+		logger.String("Username", session.Username),
+		logger.String("ID", session.ID),
+		logger.Int("data.len", len(session.Data)),
 		logger.Err(err),
 	)
-	return publicSession, nil
+	return session, nil
 }
 
-func loginCallback(cookieName string, loginCallbackURL string, publicSession *PublicSession) error {
-	if publicSession == nil || publicSession.PrivateSession == nil {
+func loginCallback(cookieName string, loginCallbackURL string, session *Session) error {
+	if session == nil {
 		return errors.New("InvalidRequiredParameter: Message='Public or private session is missed'")
 	}
-	if err := publicSession.PrivateSession.Serialize(); err != nil {
+	privateSessionID, err := util.NewUUID()
+	if err != nil {
+		logger.Error("LoginCallback.NewSessionIDError",
+			logger.String("Username", session.Username),
+			logger.Err(err),
+		)
 		return err
 	}
 	//client, err := util.GetTLSHttpClient()
 	if httpClient == nil {
-		httpClient = http.NewFastHTTPClient()
+		httpClient = fast.NewFastHTTPClient()
+	}
+	privateSession := identity.Session{
+		Id:       privateSessionID,
+		Username: session.Username,
+		Issuer:   "e-pedion.com/security",
+	}
+	token, err := identity.Serialize(privateSession)
+	if err != nil {
+		return err
 	}
 	loginCallbackHeaders := map[string]string{
-		"Authorization": fmt.Sprintf("%v: %q", cookieName, publicSession.PrivateSession.Token),
+		"Authorization": fmt.Sprintf("%v: %q", cookieName, token),
 		"Accept":        "application/json",
 	}
 	logger.Debug("LoginCallbackRequest",
 		logger.String("CallbackURL", loginCallbackURL),
-		logger.Bytes(cookieName, publicSession.Token),
-		logger.String("Username", publicSession.Username),
-		logger.String("PrivateSession", publicSession.PrivateSession.String()),
+		logger.Bytes(cookieName, token),
+		logger.String("Username", session.Username),
 	)
 	response, err := httpClient.POST(loginCallbackURL, nil, loginCallbackHeaders)
 	if err != nil {
@@ -127,19 +114,11 @@ func loginCallback(cookieName string, loginCallbackURL string, publicSession *Pu
 	if response.StatusCode() != 200 {
 		return fmt.Errorf("LoginCallbackInvalidStatusCode[Message='Bad status code: %v']", response.StatusCode())
 	}
-	bodyBytes := response.Body()
+	session.Data = response.Body()
 	logger.Debug("LoginCallbackResponse",
-		logger.String("data", string(bodyBytes)),
+		logger.Int("data.len", len(session.Data)),
 		logger.Int("ContentLength", response.ContentLength()),
 	)
-	loginData := make(map[string]interface{})
-	if err := json.Unmarshal(bodyBytes, &loginData); err != nil {
-		logger.Error("UnmarshallCallbackDataErr", logger.Err(err))
-		return err
-	}
-	//delete(loginData, "username")
-	logger.Info("LoginCallbackData", logger.Struct("Data", loginData))
-	publicSession.PrivateSession.Data = loginData
 	return nil
 }
 
@@ -154,7 +133,7 @@ func CheckHash(hashed string, plain string) error {
 }
 
 //ReadSession loads session from cache
-func ReadSession(token []byte) (*PublicSession, error) {
+func ReadSession(token []byte) (*Session, error) {
 	jwt, err := jws.ParseJWT(token)
 	if err != nil {
 		return nil, err
@@ -162,15 +141,14 @@ func ReadSession(token []byte) (*PublicSession, error) {
 	if err := jwt.Validate(jwtKey, jwtCrypto); err != nil {
 		return nil, err
 	}
-	publicSession := &PublicSession{
+	session := &Session{
 		Client:   cacheClient,
 		ID:       jwt.Claims().Get("id").(string),
-		Token:    []byte(token),
 		Username: jwt.Claims().Get("username").(string),
 	}
-	if err := publicSession.Get(); err != nil {
+	if err := session.Get(); err != nil {
 		return nil, err
 	}
-	logger.Debug("ReadSession", logger.Struct("PublicSession", publicSession))
-	return publicSession, nil
+	logger.Debug("ReadSession", logger.Struct("Session", session))
+	return session, nil
 }
