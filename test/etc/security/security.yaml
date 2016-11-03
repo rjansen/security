@@ -5,7 +5,7 @@ logger:
     root:
         debug: false
         provider: "logrus"
-        level: "error"
+        level: "info"
         format: "text"
         out: "stdout"
     access:

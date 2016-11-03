@@ -1,4 +1,4 @@
-package model
+package integration_test
 
 import (
 	// "bytes"
@@ -6,6 +6,7 @@ import (
 	"farm.e-pedion.com/repo/cache"
 	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/security/client/db/cassandra"
+	"farm.e-pedion.com/repo/security/model"
 	"time"
 	//"farm.e-pedion.com/repo/security/util"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ import (
 )
 
 func init() {
-	os.Args = append(os.Args, "-ecf", "../test/etc/security/security.yaml")
+	os.Args = append(os.Args, "-ecf", "../test/etc/security/benchmark.yaml")
 	logger.Info("model_integration_test.init")
 	if err := cassandra.Setup(); err != nil {
 		panic(err)
@@ -27,7 +28,7 @@ func init() {
 func TestIntegrationCreateLoginSuccess(t *testing.T) {
 	cqlClient := cassandra.NewClient()
 
-	login := &Login{
+	login := &model.Login{
 		Client:   cqlClient,
 		Username: "createLoginTest",
 		Name:     "Create Login Success Test",
@@ -44,7 +45,7 @@ func BenchmarkCreateLoginSuccess(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			login := &Login{
+			login := &model.Login{
 				Client:   cqlClient,
 				Username: "createLoginTest",
 				Name:     "Create Login Success Test",
@@ -61,7 +62,7 @@ func BenchmarkCreateLoginSuccess(b *testing.B) {
 func TestIntegrationReadLoginSuccess(t *testing.T) {
 	username := "makefile1"
 	cqlClient := cassandra.NewClient()
-	login := &Login{
+	login := &model.Login{
 		Client:   cqlClient,
 		Username: username,
 	}
@@ -80,7 +81,7 @@ func BenchmarkReadLoginSuccess(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			login := &Login{
+			login := &model.Login{
 				Client:   cqlClient,
 				Username: username,
 			}
@@ -98,7 +99,7 @@ func BenchmarkReadLoginSuccess(b *testing.B) {
 func TestIntegrationSetSessionSuccess(t *testing.T) {
 	cacheClient := cache.NewClient()
 	ttl := 1 * time.Hour
-	session := &Session{
+	session := &model.Session{
 		Client: cacheClient,
 		ID:     "mockSession",
 		TTL:    ttl,
@@ -114,7 +115,7 @@ func BenchmarkSetSessionSuccess(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			session := &Session{
+			session := &model.Session{
 				Client: cacheClient,
 				ID:     id,
 				TTL:    ttl,
@@ -136,7 +137,7 @@ func TestIntegrationGetSessionSuccess(t *testing.T) {
 			"expiresAt": "2016-07-10T10:15:38.000-03:00"
 		}
 	`)
-	var session Session
+	var session model.Session
 	err := session.UnmarshalBytes(sessionJSON)
 	assert.Nil(t, err)
 	session.Client = cache.NewClient()
@@ -166,7 +167,7 @@ func BenchmarkGetSessionSuccess(b *testing.B) {
 			"expiresAt": "2016-07-10T10:15:38.000-03:00"
 		}
 	`)
-	var session Session
+	var session model.Session
 	err := session.UnmarshalBytes(sessionJSON)
 	assert.Nil(b, err)
 	session.Client = cache.NewClient()
@@ -191,7 +192,7 @@ func BenchmarkGetSessionSuccess(b *testing.B) {
 }
 
 func TestIntegrationSerializePublicSessionSuccess(t *testing.T) {
-	session := &Session{
+	session := &model.Session{
 		ID:       "mockSession",
 		Issuer:   "mockIssuer",
 		Username: "mockUsername",
@@ -204,7 +205,7 @@ func BenchmarkSerializePublicSessionSuccess(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			session := &Session{
+			session := &model.Session{
 				ID:       "mockSession",
 				Issuer:   "mockIssuer",
 				Username: "mockUsername",

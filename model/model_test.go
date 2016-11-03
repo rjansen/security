@@ -8,9 +8,14 @@ import (
 	"farm.e-pedion.com/repo/security/client/db/cassandra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"os"
 	"testing"
 	"time"
 )
+
+func init() {
+	os.Args = append(os.Args, "-ecf", "../test/etc/security/security.yaml")
+}
 
 func TestCreateLoginSuccess(t *testing.T) {
 	mockCQLClient := cassandra.NewMockClient()
