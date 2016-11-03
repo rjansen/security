@@ -1,7 +1,6 @@
 package cassandra
 
 import (
-	"context"
 	"errors"
 	"farm.e-pedion.com/repo/logger"
 	"fmt"
@@ -14,18 +13,6 @@ var (
 	CassandraClientKey = "cassandra.Client"
 	ClientNotFoundErr  = errors.New("cassandra.ClientNotFoundErr message='Cassandra client does not found at context'")
 )
-
-func GetClient(c context.Context) (Client, error) {
-	client, found := c.Value(CassandraClientKey).(Client)
-	if !found {
-		return nil, ClientNotFoundErr
-	}
-	return client, nil
-}
-
-func SetClient(c context.Context) context.Context {
-	return context.WithValue(c, CassandraClientKey, NewClient())
-}
 
 type dbObject struct {
 	//session is a transient pointer to database connection
