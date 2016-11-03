@@ -1,0 +1,14 @@
+
+syntax = "proto3";
+package identity;
+
+message Session {
+    string id = 1;
+    string issuer = 2;
+    string username = 3;
+    repeated string roles = 4;
+    int64 createdAt = 5;
+    int64 ttl = 6;
+    int64 expiresAt = 7;
+    map<string, string> data = 8;
+}

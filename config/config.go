@@ -3,7 +3,7 @@ package config
 import (
 	"farm.e-pedion.com/repo/cache"
 	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/security/client/cassandra"
+	"farm.e-pedion.com/repo/security/client/db/cassandra"
 	"farm.e-pedion.com/repo/security/client/http"
 	"flag"
 	"fmt"

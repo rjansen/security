@@ -1,6 +1,7 @@
-package data
+package model
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,11 +10,12 @@ import (
 
 	"farm.e-pedion.com/repo/cache"
 	"farm.e-pedion.com/repo/config"
+	"farm.e-pedion.com/repo/context/media/json"
 	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/security/client/cassandra"
+	"farm.e-pedion.com/repo/security/client/db"
+	"farm.e-pedion.com/repo/security/client/db/cassandra"
+	"farm.e-pedion.com/repo/security/client/http"
 	localConfig "farm.e-pedion.com/repo/security/config"
-	"farm.e-pedion.com/repo/security/identity"
-	"farm.e-pedion.com/repo/security/util"
 	"github.com/SermoDigital/jose/crypto"
 	"github.com/SermoDigital/jose/jws"
 )
@@ -27,6 +29,7 @@ var (
 	securityConfig  *localConfig.SecurityConfig
 	cacheClient     cache.Client
 	cassandraClient cassandra.Client
+	httpClient      http.Client
 	//memoryCache    = make(map[string]*identity.Session)
 
 	jwtKey    = []byte("321ewqdsa#@!")
@@ -53,7 +56,6 @@ func Setup() error {
 
 //Authenticator is the data struct of the security authenticato configuration
 type Authenticator struct {
-	util.JSONObject
 	Name     string `json:"name"`
 	Label    string `json:"label"`
 	Title    string `json:"label"`
@@ -83,20 +85,19 @@ type LoginUserData struct {
 
 //Login is the data struct of the user identity
 type Login struct {
-	util.JSONObject  `json:"-"`
-	cassandra.Client `json:"-"`
-	Username         string   `json:"username"`
-	Name             string   `json:"name"`
-	Password         string   `json:"password"`
-	Roles            []string `json:"roles"`
+	cassandra.Client
+	Username string
+	Name     string
+	Password string
+	Roles    []string
 }
 
 func (l Login) String() string {
-	return fmt.Sprintf("Login[Username=%s Name=%s Roles=%v]", l.Username, l.Name, l.Roles)
+	return fmt.Sprintf("data.Login Username=%s Name=%s Roles=%v", l.Username, l.Name, l.Roles)
 }
 
 //CheckCredentials valoidatess if the the parameter is equal of the password field
-func (l *Login) CheckCredentials(password string) error {
+func (l Login) CheckCredentials(password string) error {
 	return CheckHash(l.Password, password)
 }
 
@@ -112,6 +113,25 @@ func (l *Login) Read() error {
 	}
 	err := l.QueryOne("select username, name, password, roles from login where username = ? limit 1", l.Fetch, l.Username)
 	if err != nil {
+		return err
+	}
+	return nil
+}
+
+//ReadWithContext gets the entity representation from the database.
+func (l *Login) ReadWithContext(c context.Context) error {
+	if strings.TrimSpace(l.Username) == "" {
+		return errors.New("data.Login.ReadErr msg='Login.Username is empty'")
+	}
+	dbClient, err := db.GetClient(c)
+	if err != nil {
+		return err
+	}
+	if err = dbClient.QueryOne(
+		"select username, name, password, roles from login where username = ? limit 1",
+		l.Fetch,
+		l.Username,
+	); err != nil {
 		return err
 	}
 	return nil
@@ -152,45 +172,35 @@ func (l *Login) Delete() error {
 	return l.Exec("delete from login where username = ?", l.Username)
 }
 
-//Marshal to a JSON representation
-func (l *Login) Marshal() ([]byte, error) {
-	return l.JSONObject.Marshal(&l)
+//Session represents a public ticket to call the security system
+type Session struct {
+	cache.Client `json:"-"`
+	ID           string        `json:"id"`
+	Username     string        `json:"username"`
+	Issuer       string        `json:"iss"`
+	CreatedAt    time.Time     `json:"createdAt"`
+	TTL          time.Duration `json:"ttl"`
+	ExpiresAt    time.Time     `json:"expiresAt"`
+	Data         []byte        `json:"data"`
 }
 
-//Unmarshal from a JSON representation
-func (l *Login) Unmarshal(reader io.Reader) error {
-	return l.JSONObject.Unmarshal(&l, reader)
-}
-
-//UnmarshalBytes from a []byte JSON representation
-func (l *Login) UnmarshalBytes(data []byte) error {
-	return l.JSONObject.UnmarshalBytes(&l, data)
-}
-
-//PublicSession represents a public ticket to call the security system
-type PublicSession struct {
-	util.JSONObject `json:"-"`
-	cache.Client    `json:"-"`
-	Issuer          string            `json:"iss"`
-	ID              string            `json:"id"`
-	Username        string            `json:"username"`
-	PrivateSession  *identity.Session `json:"privateSession"`
-	Token           []byte            `json:"-"`
-}
-
-func (s *PublicSession) String() string {
-	return fmt.Sprintf("PublicSession[ID=%v Username=%v Issuer=%v PrivateSession=%v]", s.ID, s.Username, s.Issuer, s.PrivateSession)
+func (s Session) String() string {
+	return fmt.Sprintf("model.Session ID=%v Username=%s Issuer=%v ExpiresAt=%s]", s.ID, s.Username, s.Issuer, s.ExpiresAt)
 }
 
 //Set sets the session to cache
-func (s *PublicSession) Set() error {
-	ttl := int(s.PrivateSession.TTL / time.Second)
+func (s *Session) Set() error {
+	if strings.TrimSpace(s.ID) == "" {
+		return errors.New("data.Session.SetErr msg='The Session.ID field cannot be blank'")
+	}
+	ttl := int(s.TTL / time.Second)
 	logger.Debug("StoringSession",
 		logger.String("ID", s.ID),
-		logger.Int("TTL", ttl),
-		logger.String("Private", s.PrivateSession.String()),
+		logger.String("Username", s.Username),
+		logger.Duration("TTL", s.TTL),
+		logger.Time("Expires", s.ExpiresAt),
 	)
-	sessionBytes, err := s.Marshal()
+	sessionBytes, err := json.MarshalBytes(s)
 	if err != nil {
 		return fmt.Errorf("MarshalSessionError: Message='ImpossibleToMarshalSession: ID=%v Cause=%v'", s.ID, err)
 	}
@@ -207,9 +217,9 @@ func (s *PublicSession) Set() error {
 }
 
 //Get gets the session from cache
-func (s *PublicSession) Get() error {
+func (s *Session) Get() error {
 	if strings.TrimSpace(s.ID) == "" {
-		return errors.New("data.PublicSession.Get: Message='PublicSession.ID is empty'")
+		return errors.New("data.Session.GetErr Message='PublicSession.ID is empty'")
 	}
 	logger.Info("GetPublicSession", logger.Struct("client", s.Client))
 	sessionBytes, err := s.Client.Get(s.ID)
@@ -227,23 +237,29 @@ func (s *PublicSession) Get() error {
 	return nil
 }
 
-//Marshal to a JSON representation
-func (s *PublicSession) Marshal() ([]byte, error) {
-	return s.JSONObject.Marshal(&s)
+//Marshal writes a json representation of the struct instance
+func (s *Session) Marshal(w io.Writer) error {
+	return json.Marshal(w, &s)
 }
 
-//Unmarshal from a JSON representation
-func (s *PublicSession) Unmarshal(reader io.Reader) error {
-	return s.JSONObject.Unmarshal(&s, reader)
+//Unmarshal reads a json representation into the struct instance
+func (s *Session) Unmarshal(r io.Reader) error {
+	return json.Unmarshal(r, &s)
 }
 
-//UnmarshalBytes from a JSON representation
-func (s *PublicSession) UnmarshalBytes(data []byte) error {
-	return s.JSONObject.UnmarshalBytes(&s, data)
+//MarshalBytes writes a json representation of the struct instance
+func (s *Session) MarshalBytes() ([]byte, error) {
+	return json.MarshalBytes(&s)
+}
+
+//UnmarshalBytes reads a json representation into the struct instance
+func (s *Session) UnmarshalBytes(data []byte) error {
+	return json.UnmarshalBytes(data, &s)
+
 }
 
 //Serialize writes a JWT representation of this Session in the Token field
-func (s *PublicSession) Serialize() error {
+func (s *Session) Serialize() ([]byte, error) {
 	claims := jws.Claims{
 		"id":       s.ID,
 		"iss":      s.Issuer,
@@ -254,9 +270,8 @@ func (s *PublicSession) Serialize() error {
 	// }
 	jwt := jws.NewJWT(claims, jwtCrypto)
 	token, err := jwt.Serialize(jwtKey)
-	if err != nil {
-		return err
-	}
-	s.Token = token
-	return nil
+	// if err != nil {
+	// 	return err
+	// }
+	return token, err
 }

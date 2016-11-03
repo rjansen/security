@@ -1,4 +1,4 @@
-{% import "farm.e-pedion.com/repo/security/data" %} {% func Body(loginPageData data.LoginPageData) %}
+{% import data "farm.e-pedion.com/repo/security/model" %} {% func Body(loginPageData data.LoginPageData) %}
 <!-- Start Header -->
 <!DOCTYPE html>
 <html lang="en">

@@ -1,11 +1,11 @@
-version: "getBenchmark_0.0.1-young"
+version: "security.0.1-young"
 environment: "test"
 
 logger:
     root:
         debug: false
         provider: "logrus"
-        level: "debug"
+        level: "error"
         format: "text"
         out: "stdout"
     access:
@@ -21,9 +21,9 @@ cache:
 db:
     cassandra:
         url: "127.0.0.1:9042"
-        keyspace: "fivecolors"
-        username: "fivecolors"
-        password: "fivecolors"
+        keyspace: "fivecolors_test"
+        username: "fivecolors_test"
+        password: "fivecolors_test"
         numConns: 10
         keepAliveDuration: 60000000000
 

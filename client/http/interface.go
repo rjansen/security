@@ -27,14 +27,13 @@ const (
 )
 
 var (
-	requestTimeout  time.Duration
-	maxConnxPerHost int
+	Config *Configuration
 )
 
 //Configuration holds http connections parameters
 type Configuration struct {
-	RequestTimeout  int `mapstructure:"request_timeout"`
-	MaxConnsPerHost int `mapstructure:"max_conns_perhost"`
+	RequestTimeout  time.Duration `mapstructure:"request_timeout"`
+	MaxConnsPerHost int           `mapstructure:"max_conns_perhost"`
 }
 
 func (c Configuration) String() string {
@@ -43,12 +42,9 @@ func (c Configuration) String() string {
 
 //Setup initializes the package
 func Setup() error {
-	var cfg *Configuration
-	if err := config.UnmarshalKey("http", cfg); err != nil {
+	if err := config.UnmarshalKey("http", Config); err != nil {
 		return err
 	}
-	requestTimeout = time.Duration(cfg.RequestTimeout) * time.Millisecond
-	maxConnxPerHost = cfg.MaxConnsPerHost
 	return nil
 }
 
