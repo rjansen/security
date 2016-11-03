@@ -88,7 +88,7 @@ func LoadGetTestHandler(c context.Context, fc *fasthttp.RequestCtx) error {
 		Roles:    []string{"role1", "role2", "role3", "roleN"},
 	}
 
-	if err := login.Read(); err != nil {
+	if err := login.Read(c); err != nil {
 		logger.Error("LoadGetTestHandler.ReadLoginError",
 			logger.String("Username", identifier),
 			logger.Err(err),
