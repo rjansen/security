@@ -12,7 +12,7 @@ import (
 	"farm.e-pedion.com/repo/context/fast"
 	"farm.e-pedion.com/repo/context/media/json"
 	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/security/client/db"
+	"farm.e-pedion.com/repo/persistence"
 	data "farm.e-pedion.com/repo/security/model"
 	"farm.e-pedion.com/repo/security/view"
 
@@ -68,7 +68,7 @@ func LoadGetTestHandler(c context.Context, fc *fasthttp.RequestCtx) error {
 	login := data.Login{
 		Username: identifier,
 	}
-	if err := db.Execute(login.ReadWithContext); err != nil {
+	if err := persistence.Execute(login.Read); err != nil {
 		logger.Error("LoadGetTestHandler.ReadLoginError",
 			logger.String("Username", identifier),
 			logger.Err(err),

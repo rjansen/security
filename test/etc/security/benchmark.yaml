@@ -14,18 +14,16 @@ logger:
         format: "json"
         out: "./security.access.log"
 
-cache:
-    provider: "memcached"
+memcached:
     url: "127.0.0.1:11211"
 
-db:
-    cassandra:
-        url: "127.0.0.1:9042"
-        keyspace: "fivecolors_test"
-        username: "fivecolors_test"
-        password: "fivecolors_test"
-        numConns: 10
-        keepAliveDuration: 60000000000
+cassandra:
+    url: "127.0.0.1:9042"
+    keyspace: "fivecolors_test"
+    username: "fivecolors_test"
+    password: "fivecolors_test"
+    numConns: 10
+    keepAliveDuration: 60000000000
 
 http:
     request_timeout: 500

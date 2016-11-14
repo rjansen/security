@@ -10,6 +10,7 @@ import (
 
 	"farm.e-pedion.com/repo/context/media/json"
 	"farm.e-pedion.com/repo/logger"
+	"farm.e-pedion.com/repo/persistence"
 	"farm.e-pedion.com/repo/security/config"
 	data "farm.e-pedion.com/repo/security/model"
 	"farm.e-pedion.com/repo/security/view"
@@ -43,8 +44,8 @@ func (p *AuthenticatedHandler) GetSession() *data.Session {
 func NewSessionCookieHandler(handler AuthenticatableHandler) FastHttpHandler {
 	return &SessionCookieHandler{
 		AuthenticatableHandler: handler,
-		ProxyConfig:            config.Get().Proxy,
-		SecurityConfig:         config.Get().Security,
+		ProxyConfig:            config.Config.Proxy,
+		SecurityConfig:         config.Config.Security,
 	}
 }
 
@@ -201,8 +202,8 @@ func (handler *SessionHeaderHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 
 func NewAuthHandler() *AuthHandler {
 	return &AuthHandler{
-		ProxyConfig:    config.Get().Proxy,
-		SecurityConfig: config.Get().Security,
+		ProxyConfig:    config.Config.Proxy,
+		SecurityConfig: config.Config.Security,
 	}
 }
 
@@ -326,11 +327,11 @@ func (l *AuthHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 func NewLogoutHandler() FastHttpHandler {
 	return &SessionCookieHandler{
 		AuthenticatableHandler: &LogoutHandler{
-			SecurityConfig: config.Get().Security,
-			ProxyConfig:    config.Get().Proxy,
+			SecurityConfig: config.Config.Security,
+			ProxyConfig:    config.Config.Proxy,
 		},
-		ProxyConfig:    config.Get().Proxy,
-		SecurityConfig: config.Get().Security,
+		ProxyConfig:    config.Config.Proxy,
+		SecurityConfig: config.Config.Security,
 	}
 	// return &LogoutHandler{
 	// 	SecurityConfig: config.BindSecurityConfiguration(),
@@ -398,8 +399,8 @@ func (l *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewGetSessionHandler() FastHttpHandler {
 	return &SessionCookieHandler{
 		AuthenticatableHandler: &GetSessionHandler{},
-		ProxyConfig:            config.Get().Proxy,
-		SecurityConfig:         config.Get().Security,
+		ProxyConfig:            config.Config.Proxy,
+		SecurityConfig:         config.Config.Security,
 	}
 }
 
@@ -462,8 +463,8 @@ func (h *GetSessionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewValidateSessionHandler() FastHttpHandler {
 	return &SessionCookieHandler{
 		AuthenticatableHandler: &ValidateSessionHandler{},
-		ProxyConfig:            config.Get().Proxy,
-		SecurityConfig:         config.Get().Security,
+		ProxyConfig:            config.Config.Proxy,
+		SecurityConfig:         config.Config.Security,
 	}
 }
 
@@ -502,13 +503,13 @@ func NewLoginManagerHandler() FastHttpHandler {
 	return NewRequestMethodHandler(
 		&SessionCookieHandler{
 			AuthenticatableHandler: &GetLoginHandler{},
-			ProxyConfig:            config.Get().Proxy,
-			SecurityConfig:         config.Get().Security,
+			ProxyConfig:            config.Config.Proxy,
+			SecurityConfig:         config.Config.Security,
 		},
 		&SessionCookieHandler{
 			AuthenticatableHandler: &PostLoginHandler{},
-			ProxyConfig:            config.Get().Proxy,
-			SecurityConfig:         config.Get().Security,
+			ProxyConfig:            config.Config.Proxy,
+			SecurityConfig:         config.Config.Security,
 		})
 }
 
@@ -526,7 +527,7 @@ func (h *GetLoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	username := urlPathParameters[3]
 
 	login := data.Login{Username: username}
-	if err := login.Read(); err != nil {
+	if err := persistence.Execute(login.Read); err != nil {
 		logger.Error("handler.GetLoginHandler.ReadLoginError", logger.String("Username", username), logger.Err(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -554,7 +555,7 @@ func (h *GetLoginHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 	username := string(ctx.URI().LastPathSegment())
 
 	login := data.Login{Username: username}
-	if err := login.Read(); err != nil {
+	if err := persistence.Execute(login.Read); err != nil {
 		logger.Error("ReadLoginError", logger.String("Username", username), logger.Err(err))
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
@@ -588,7 +589,7 @@ func (h *PostLoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	} else {
 		login := view.ToLoginModel(loginView)
-		if err := login.Create(); err != nil {
+		if err := persistence.Execute(login.Create); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
 			//w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -606,7 +607,7 @@ func (h *PostLoginHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 	}
 	login := view.ToLoginModel(loginView)
 	logger.Debug("PostLoginHandler", logger.String("Login", login.String()))
-	if err := login.Create(); err != nil {
+	if err := persistence.Execute(login.Create); err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
 	}

@@ -21,7 +21,7 @@ var (
 func NewApiReverseProxy(targetURL *url.URL) handler.FastHttpHandler {
 	return handler.NewSessionCookieHandler(
 		&ApiReverseProxy{
-			SecurityConfig: config.Get().Security,
+			SecurityConfig: config.Config.Security,
 			ProxyURL:       targetURL,
 			reverseProxy:   httputil.NewSingleHostReverseProxy(targetURL),
 			proxyClient: &fasthttp.HostClient{
@@ -93,7 +93,7 @@ func (a *ApiReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewWebReverseProxy(targetURL *url.URL) handler.FastHttpHandler {
 	return handler.NewSessionCookieHandler(
 		&WebReverseProxy{
-			SecurityConfig: config.Get().Security,
+			SecurityConfig: config.Config.Security,
 			ProxyURL:       targetURL,
 			reverseProxy:   httputil.NewSingleHostReverseProxy(targetURL),
 			proxyClient: &fasthttp.HostClient{

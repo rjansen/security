@@ -180,20 +180,33 @@ run: build conf check_conf
 
 .PHONY: test_all
 test_all:
-	go test -v -race  $(PKGS)
+	@echo "Test and Integration Test All Pkgs"
+	@go test -v -race $(PKGS)
 
 .PHONY: test
 test:
 	@if [ "$(TEST_PKGS)" == "" ]; then \
-	    echo "Test All Pkgs";\
-		go test -v -race $(PKGS) || exit 501;\
+		echo "Unit Test All Pkgs";\
+		go test -v -race -run=Unit $(PKGS) || exit 501;\
 	else \
-	    echo "Test Selected Pkgs=$(TEST_PKGS)";\
-		SELECTED_TEST_PKGS="";\
+	    echo "Unit Test Selected Pkgs=$(TEST_PKGS)";\
 	    for tstpkg in $(TEST_PKGS); do \
-			go test -v -race $(REPO)/$$tstpkg || exit 501;\
+			go test -v -race -run=Unit $(REPO)/$$tstpkg || exit 501;\
 		done; \
 	fi
+
+.PHONY: itest
+itest:
+	@if [ "$(TEST_PKGS)" == "" ]; then \
+		echo "Integration Test All Pkgs";\
+		go test -v -race -run=Int $(PKGS) || exit 501;\
+	else \
+	    echo "Integration Test Selected Pkgs=$(TEST_PKGS)";\
+	    for tstpkg in $(TEST_PKGS); do \
+			go test -v -race -run=Int $(REPO)/$$tstpkg || exit 501;\
+		done; \
+	fi
+
 
 .PHONY: bench
  bench: up_cassandra run_cql up_mongo run_mongo benchmark
@@ -228,18 +241,23 @@ coverage:
 	@if [ "$(TEST_PKGS)" == "" ]; then \
 		for pkg in $(PKGS); do \
 			go test -v -coverprofile=$(PKG_COVERAGE) $$pkg || exit 501; \
-			grep -v 'mode: set' $(PKG_COVERAGE) >> $(COVERAGE_FILE); \
+			if (( `grep -c -v 'mode: set' $(PKG_COVERAGE)` > 0 )); then \
+				grep -v 'mode: set' $(PKG_COVERAGE) >> $(COVERAGE_FILE); \
+			fi; \
 		done; \
 	else \
 	    echo "Testing with covegare the Pkgs=$(TEST_PKGS)" ;\
 	    for tstpkg in $(TEST_PKGS); do \
 			go test -v -coverprofile=$(PKG_COVERAGE) $(REPO)/$$tstpkg || exit 501; \
-			grep -v 'mode: set' $(PKG_COVERAGE) >> $(COVERAGE_FILE); \
+			if (( `grep -c -v 'mode: set' $(PKG_COVERAGE)` > 0 )); then \
+				grep -v 'mode: set' $(PKG_COVERAGE) >> $(COVERAGE_FILE); \
+			fi; \
 		done; \
 	fi
 	@echo "Generating report"
-	go tool cover -html=$(COVERAGE_FILE) -o $(COVERAGE_HTML)
+	@go tool cover -html=$(COVERAGE_FILE) -o $(COVERAGE_HTML)
 	open $(COVERAGE_HTML)
+
 
 .PHONY: load
 load: up_$(DB) up_test wrk down_test down_$(DB) 

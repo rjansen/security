@@ -2,13 +2,14 @@ package handler
 
 import (
 	"context"
+
+	"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/security/client/db/cassandra"
+	"farm.e-pedion.com/repo/persistence/cassandra"
 	"github.com/stretchr/testify/assert"
 	"github.com/valyala/fasthttp"
 	"os"
 	"testing"
-	"time"
 )
 
 var (
@@ -17,20 +18,17 @@ var (
 
 func init() {
 	os.Args = append(os.Args, "-ecf", "../test/etc/security/benchmark.yaml")
-	log = logger.Get()
-	log.Info("handler_test.init")
-	if err := cassandra.Setup(); err != nil {
+	logger.Info("handler_test.init")
+	var cfg *cassandra.Configuration
+	if err := config.UnmarshalKey("cassandra", &cfg); err != nil {
+		panic(err)
+	}
+	if err := cassandra.Setup(cfg); err != nil {
 		panic(err)
 	}
 }
 
-func TestDurationParse(t *testing.T) {
-	d, err := time.ParseDuration("1m0s")
-	assert.Nil(t, err)
-	assert.Equal(t, time.Minute, d)
-}
-
-func TestGetHandlerSuccess(t *testing.T) {
+func TestIntGetHandlerSuccess(t *testing.T) {
 	testHandler := NewLoadTestHandler()
 	var ctx fasthttp.RequestCtx
 	var req fasthttp.Request
@@ -46,7 +44,7 @@ func TestGetHandlerSuccess(t *testing.T) {
 	assert.Equal(t, ctx.Response.StatusCode(), fasthttp.StatusOK)
 }
 
-func TestPostHandlerSuccess(t *testing.T) {
+func TestIntPostHandlerSuccess(t *testing.T) {
 	testHandler := NewLoadTestHandler()
 	var ctx fasthttp.RequestCtx
 	var req fasthttp.Request

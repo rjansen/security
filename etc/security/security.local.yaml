@@ -8,24 +8,26 @@ logger:
         level: "panic"
         format: "text_color"
         out: "stdout"
+        hooks:
+            syslog:
+                address: tcp(127.0.0.1:1521)
+                priority: debug
     access:
         provider: "logrus"
         level: "info"
         format: "json"
         out: "./security.access.log"
 
-cache:
-    provider: "memcached"
+memcached:
     url: "127.0.0.1:11211"
 
-db:
-    cassandra:
-        url: "127.0.0.1:9042"
-        keyspace: "fivecolors"
-        username: "fivecolors"
-        password: "fivecolors"
-        numConns: 10
-        keepAliveDuration: 60000000000
+cassandra:
+    url: "127.0.0.1:9042"
+    keyspace: "fivecolors"
+    username: "fivecolors"
+    password: "fivecolors"
+    numConns: 10
+    keepAliveDuration: 60000000000
 
 http:
     request_timeout: 500

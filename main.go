@@ -3,13 +3,13 @@ package main
 import (
 	// "bytes"
 	"context"
-	"farm.e-pedion.com/repo/cache"
+	"farm.e-pedion.com/repo/cache/memcached"
 	"farm.e-pedion.com/repo/config"
-	myCtx "farm.e-pedion.com/repo/context"
 	// ctxFast "farm.e-pedion.com/repo/context/fasthttp"
 	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/security/client/db/cassandra"
-	localConfig "farm.e-pedion.com/repo/security/config"
+	"farm.e-pedion.com/repo/persistence/cassandra"
+	// "farm.e-pedion.com/repo/persistence"
+	myCfg "farm.e-pedion.com/repo/security/config"
 	// "farm.e-pedion.com/repo/security/client/http"
 	// "farm.e-pedion.com/repo/security/config"
 	"farm.e-pedion.com/repo/security/handler"
@@ -22,31 +22,27 @@ import (
 
 func init() {
 	logger.Info("security.init")
-	errs := myCtx.Setup(
-		cassandra.Setup,
-		cache.Setup,
-		model.Setup,
-	)
-	if errs != nil {
-		logger.Panic("security.main.initErr", logger.Struct("errs", errs))
+	var cfg *myCfg.Configuration
+	var err error
+	if err = config.Unmarshal(&cfg); err != nil {
+		logger.Panic("security.ReadConfigErr", logger.Err(err))
 	}
+	if err = myCfg.Setup(cfg); err != nil {
+		logger.Panic("security.SetupConfigErr", logger.Err(err))
+	}
+	if err = memcached.Setup(&myCfg.Config.Memcached); err != nil {
+		logger.Panic("security.MemcachedSetupErr", logger.Err(err))
+	}
+	if err = cassandra.Setup(&myCfg.Config.Cassandra); err != nil {
+		logger.Panic("security.CassandraSetupErr", logger.Err(err))
+	}
+	if err = model.Setup(&myCfg.Config.Proxy, &myCfg.Config.Security); err != nil {
+		logger.Panic("security.ModelSetupErr", logger.Err(err))
+	}
+	logger.Info("security.Setted", logger.String("Config", myCfg.Config.String()))
 }
 
 func main() {
-	var err error
-	var configuration *localConfig.Configuration
-	if err = config.Unmarshal(&configuration); err != nil {
-		logger.Panic("security.configurationErr", logger.Err(err))
-	}
-	logger.Info("security.setted", logger.String("configuration", configuration.String()))
-
-	// if err = cache.Setup(configuration.Cache); err != nil {
-	// 	log.Panic("CacheSetupErr", logger.String("err", err.Error()))
-	// }
-
-	// if err = cassandra.Setup(); err != nil {
-	// 	log.Panic("CassandraClientSetupErr", logger.Err(err))
-	// }
 
 	// if err = data.Setup(); err != nil {
 	// 	log.Panic("DataSetupErr", logger.Err(err))
@@ -170,14 +166,14 @@ func main() {
 	// }
 
 	logger.Info("security.starting",
-		logger.String("Version", configuration.Version),
-		logger.String("BindAddress", configuration.Handler.BindAddress),
+		logger.String("Version", myCfg.Config.Version),
+		logger.String("BindAddress", myCfg.Config.Handler.BindAddress),
 	)
-	err = fasthttp.ListenAndServe(configuration.Handler.BindAddress, httpHandler)
+	err := fasthttp.ListenAndServe(myCfg.Config.Handler.BindAddress, httpHandler)
 	if err != nil {
 		logger.Panic("security.Err",
-			logger.String("Version", configuration.Version),
-			logger.String("BindAddress", configuration.Handler.BindAddress),
+			logger.String("Version", myCfg.Config.Version),
+			logger.String("BindAddress", myCfg.Config.Handler.BindAddress),
 			logger.Err(err),
 		)
 	}

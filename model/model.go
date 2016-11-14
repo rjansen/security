@@ -1,7 +1,6 @@
 package model
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,13 +8,12 @@ import (
 	"time"
 
 	"farm.e-pedion.com/repo/cache"
-	"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/context/media/json"
 	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/security/client/db"
-	"farm.e-pedion.com/repo/security/client/db/cassandra"
+	"farm.e-pedion.com/repo/persistence"
+	"farm.e-pedion.com/repo/persistence/cassandra"
 	"farm.e-pedion.com/repo/security/client/http"
-	localConfig "farm.e-pedion.com/repo/security/config"
+	"farm.e-pedion.com/repo/security/config"
 	"github.com/SermoDigital/jose/crypto"
 	"github.com/SermoDigital/jose/jws"
 )
@@ -25,11 +23,9 @@ const (
 )
 
 var (
-	proxyConfig     *localConfig.ProxyConfig
-	securityConfig  *localConfig.SecurityConfig
-	cacheClient     cache.Client
-	cassandraClient cassandra.Client
-	httpClient      http.Client
+	proxyConfig    *config.ProxyConfig
+	securityConfig *config.SecurityConfig
+	httpClient     http.Client
 	//memoryCache    = make(map[string]*identity.Session)
 
 	jwtKey    = []byte("321ewqdsa#@!")
@@ -38,18 +34,11 @@ var (
 	NotFoundErr = cassandra.NotFoundErr
 )
 
-func Setup() error {
+//Setup configures the package
+func Setup(proxyCfg *config.ProxyConfig, securityCfg *config.SecurityConfig) error {
 	logger.Info("data.SetupStart")
-	if err := config.UnmarshalKey("proxy", &proxyConfig); err != nil {
-		logger.Info("data.GetProxyConfigErr", logger.Err(err))
-		return err
-	}
-	if err := config.UnmarshalKey("security", &securityConfig); err != nil {
-		logger.Info("data.GetSecurityConfigErr", logger.Err(err))
-		return err
-	}
-	cacheClient = cache.NewClient()
-	cassandraClient = cassandra.NewClient()
+	proxyConfig = proxyCfg
+	securityConfig = securityCfg
 	logger.Info("data.SetupEnd")
 	return nil
 }
@@ -85,7 +74,6 @@ type LoginUserData struct {
 
 //Login is the data struct of the user identity
 type Login struct {
-	cassandra.Client
 	Username string
 	Name     string
 	Password string
@@ -102,43 +90,20 @@ func (l Login) CheckCredentials(password string) error {
 }
 
 //Fetch fetchs the Row and sets the values into Login instance
-func (l *Login) Fetch(fetchable cassandra.Fetchable) error {
+func (l *Login) Fetch(fetchable persistence.Fetchable) error {
 	return fetchable.Scan(&l.Username, &l.Name, &l.Password, &l.Roles)
 }
 
 //Read gets the entity representation from the database.
-func (l *Login) Read() error {
+func (l *Login) Read(client persistence.Client) error {
 	if strings.TrimSpace(l.Username) == "" {
 		return errors.New("ReadError[Message='Login.Username is empty']")
 	}
-	err := l.QueryOne("select username, name, password, roles from login where username = ? limit 1", l.Fetch, l.Username)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-//ReadWithContext gets the entity representation from the database.
-func (l *Login) ReadWithContext(c context.Context) error {
-	if strings.TrimSpace(l.Username) == "" {
-		return errors.New("data.Login.ReadErr msg='Login.Username is empty'")
-	}
-	dbClient, err := db.GetClient(c)
-	if err != nil {
-		return err
-	}
-	if err = dbClient.QueryOne(
-		"select username, name, password, roles from login where username = ? limit 1",
-		l.Fetch,
-		l.Username,
-	); err != nil {
-		return err
-	}
-	return nil
+	return client.QueryOne("select username, name, password, roles from login where username = ? limit 1", l.Fetch, l.Username)
 }
 
 //Create adds a new login record to the database.
-func (l *Login) Create() error {
+func (l *Login) Create(client persistence.Client) error {
 	if strings.TrimSpace(l.Username) == "" {
 		return errors.New("PersistError: Message='Login.Username is empty'")
 	}
@@ -156,32 +121,26 @@ func (l *Login) Create() error {
 		return err
 	}
 	l.Password = string(hashedPassword)
-
-	err = l.Exec("insert into login (username, name, password, roles) values (?, ?, ?, ?)", l.Username, l.Name, l.Password, l.Roles)
-	if err != nil {
-		return err
-	}
-	return nil
+	return client.Exec("insert into login (username, name, password, roles) values (?, ?, ?, ?)", l.Username, l.Name, l.Password, l.Roles)
 }
 
 //Delete removes the login record from the database
-func (l *Login) Delete() error {
+func (l *Login) Delete(client persistence.Client) error {
 	if strings.TrimSpace(l.Username) == "" {
 		return errors.New("RemoveError: Message='Login.Username is empty'")
 	}
-	return l.Exec("delete from login where username = ?", l.Username)
+	return client.Exec("delete from login where username = ?", l.Username)
 }
 
 //Session represents a public ticket to call the security system
 type Session struct {
-	cache.Client `json:"-"`
-	ID           string        `json:"id"`
-	Username     string        `json:"username"`
-	Issuer       string        `json:"iss"`
-	CreatedAt    time.Time     `json:"createdAt"`
-	TTL          time.Duration `json:"ttl"`
-	ExpiresAt    time.Time     `json:"expiresAt"`
-	Data         []byte        `json:"data"`
+	ID        string        `json:"id"`
+	Username  string        `json:"username"`
+	Issuer    string        `json:"iss"`
+	CreatedAt time.Time     `json:"createdAt"`
+	TTL       time.Duration `json:"ttl"`
+	ExpiresAt time.Time     `json:"expiresAt"`
+	Data      []byte        `json:"data"`
 }
 
 func (s Session) String() string {
@@ -189,7 +148,7 @@ func (s Session) String() string {
 }
 
 //Set sets the session to cache
-func (s *Session) Set() error {
+func (s *Session) Set(client cache.Client) error {
 	if strings.TrimSpace(s.ID) == "" {
 		return errors.New("data.Session.SetErr msg='The Session.ID field cannot be blank'")
 	}
@@ -204,7 +163,7 @@ func (s *Session) Set() error {
 	if err != nil {
 		return fmt.Errorf("MarshalSessionError: Message='ImpossibleToMarshalSession: ID=%v Cause=%v'", s.ID, err)
 	}
-	err = s.Client.Set(s.ID, ttl, sessionBytes)
+	err = client.Set(s.ID, ttl, sessionBytes)
 	if err != nil {
 		return fmt.Errorf("SetSessionError: Message='ImpossibleToCacheSession: ID=%v Cause=%v'", s.ID, err)
 	}
@@ -217,12 +176,11 @@ func (s *Session) Set() error {
 }
 
 //Get gets the session from cache
-func (s *Session) Get() error {
+func (s *Session) Get(client cache.Client) error {
 	if strings.TrimSpace(s.ID) == "" {
 		return errors.New("data.Session.GetErr Message='PublicSession.ID is empty'")
 	}
-	logger.Info("GetPublicSession", logger.Struct("client", s.Client))
-	sessionBytes, err := s.Client.Get(s.ID)
+	sessionBytes, err := client.Get(s.ID)
 	if err != nil {
 		return fmt.Errorf("data.GetSessionError: Message='ImpossibleToGetCachedSession: ID=%v Cause=%v'", s.ID, err.Error())
 	}

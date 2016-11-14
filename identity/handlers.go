@@ -37,8 +37,8 @@ func (p *AuthenticatedHandler) GetSession() *Session {
 func NewCookieAuthenticatedHandler(handler AuthenticatableHandler) http.Handler {
 	return &CookieAuthenticatedHandler{
 		AuthenticatableHandler: handler,
-		ProxyConfig:            config.Get().Proxy,
-		SecurityConfig:         config.Get().Security,
+		ProxyConfig:            config.Config.Proxy,
+		SecurityConfig:         config.Config.Security,
 	}
 }
 

@@ -3,16 +3,22 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "YUDxB+ol+59PKZs0ovqBgxRWUHY=",
+			"checksumSHA1": "hwppcyAIeT18qo4xJJQEERgkOXE=",
 			"path": "farm.e-pedion.com/repo/cache",
-			"revision": "cf3fb0f450111b0cfefa62cd1db7d911185c47b7",
-			"revisionTime": "2016-11-02T23:55:16Z"
+			"revision": "e8574a03bba922d8b2579a01077939210bf8aeca",
+			"revisionTime": "2016-11-14T02:03:33Z"
 		},
 		{
-			"checksumSHA1": "hEITZrCjC+H+htQpz/Mknl05fcI=",
+			"checksumSHA1": "bAQQhP+QswOAob1AH8gKs9gIlLI=",
+			"path": "farm.e-pedion.com/repo/cache/memcached",
+			"revision": "e8574a03bba922d8b2579a01077939210bf8aeca",
+			"revisionTime": "2016-11-14T02:03:33Z"
+		},
+		{
+			"checksumSHA1": "saRdqhwimWjSqWa1TyUQ49i9ZkU=",
 			"path": "farm.e-pedion.com/repo/config",
-			"revision": "d5637ac031b58df766b76c01c7e5e14dc05b58ba",
-			"revisionTime": "2016-10-29T13:20:30Z"
+			"revision": "ab4ff23e2ebd055f23af9d4311b088e05c0a2606",
+			"revisionTime": "2016-11-13T00:35:52Z"
 		},
 		{
 			"checksumSHA1": "Plert0cOWvfvr4hOCc6oMEHtGXU=",
@@ -45,10 +51,28 @@
 			"revisionTime": "2016-11-03T01:19:04Z"
 		},
 		{
-			"checksumSHA1": "vwP5lmwxBA3oiR4Wly9sinGkWwU=",
+			"checksumSHA1": "p46Yqa5oY9p1MO5bgbN5KiO36zQ=",
 			"path": "farm.e-pedion.com/repo/logger",
-			"revision": "393338099d2e295c9c899c97fad4a867e6a5cc28",
-			"revisionTime": "2016-11-03T01:09:53Z"
+			"revision": "671aad1fb59503f1336f17fc55d0babdd89d0ac8",
+			"revisionTime": "2016-11-13T13:57:34Z"
+		},
+		{
+			"checksumSHA1": "9a1oD7DmEXNnyZpaevE1e+9wleQ=",
+			"path": "farm.e-pedion.com/repo/persistence",
+			"revision": "69203108654c3bdf26e0ba9bb83383480340d7d3",
+			"revisionTime": "2016-11-14T02:01:00Z"
+		},
+		{
+			"checksumSHA1": "x5nTqaJ3FlJ22ZaXxMkbtNVDO2E=",
+			"path": "farm.e-pedion.com/repo/persistence/cassandra",
+			"revision": "69203108654c3bdf26e0ba9bb83383480340d7d3",
+			"revisionTime": "2016-11-14T02:01:00Z"
+		},
+		{
+			"checksumSHA1": "vIByBG9OgFmz7tvDJz+b2gXOkAc=",
+			"path": "farm.e-pedion.com/repo/persistence/mongodb",
+			"revision": "69203108654c3bdf26e0ba9bb83383480340d7d3",
+			"revisionTime": "2016-11-14T02:01:00Z"
 		},
 		{
 			"checksumSHA1": "Nf6MTTm2B6KIeFzBBw30/pHuzkE=",
@@ -130,6 +154,12 @@
 			"path": "github.com/gocql/gocql/internal/streams",
 			"revision": "f674d1dda7a96d89945ba1ef9506cbdfa025c6f6",
 			"revisionTime": "2016-10-22T20:56:59Z"
+		},
+		{
+			"checksumSHA1": "SVXOQdpDBh0ihdZ5aIflgdA+Rpw=",
+			"path": "github.com/golang/protobuf/proto",
+			"revision": "98fa357170587e470c5f27d3c3ea0947b71eb455",
+			"revisionTime": "2016-10-12T20:53:35Z"
 		},
 		{
 			"checksumSHA1": "W+E/2xXcE1GmJ0Qb784ald0Fn6I=",

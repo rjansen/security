@@ -5,39 +5,31 @@ import (
 	"errors"
 	"farm.e-pedion.com/repo/cache"
 	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/security/client/db/cassandra"
+	cassandra "farm.e-pedion.com/repo/persistence"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"os"
 	"testing"
 	"time"
 )
 
-func init() {
-	os.Args = append(os.Args, "-ecf", "../test/etc/security/security.yaml")
-}
-
-func TestCreateLoginSuccess(t *testing.T) {
-	mockCQLClient := cassandra.NewMockClient()
+func TestUnitCreateLoginSuccess(t *testing.T) {
+	mockCQLClient := cassandra.NewClientMock()
 	mockCQLClient.On("Exec", mock.Anything, mock.Anything).Return(nil)
 
 	login := &Login{
-		Client:   mockCQLClient,
 		Username: "createLoginTest",
 		Name:     "Create Login Success Test",
 		Password: "123mock321",
 		Roles:    []string{"role1", "role2"},
 	}
 
-	createError := login.Create()
+	createError := login.Create(mockCQLClient)
 	assert.Nil(t, createError)
 }
 
-func TestCreateLoginError(t *testing.T) {
-	mockCQLClient := cassandra.NewMockClient()
-	login := &Login{
-		Client: mockCQLClient,
-	}
+func TestUnitCreateLoginError(t *testing.T) {
+	mockCQLClient := cassandra.NewClientMock()
+	var login Login
 	cases := []struct {
 		username  string
 		name      string
@@ -61,17 +53,16 @@ func TestCreateLoginError(t *testing.T) {
 		login.Password = c.password
 		login.Roles = c.roles
 
-		createError := login.Create()
+		createError := login.Create(mockCQLClient)
 		assert.NotNil(t, createError)
 		assert.Contains(t, createError.Error(), c.out)
 	}
 }
 
-func TestReadLoginSuccess(t *testing.T) {
+func TestUnitReadLoginSuccess(t *testing.T) {
 	username := "readLoginTest"
-	mockCQLClient := cassandra.NewMockClient()
+	mockCQLClient := cassandra.NewClientMock()
 	login := &Login{
-		Client:   mockCQLClient,
 		Username: username,
 	}
 	name := "Read Login Success Test"
@@ -83,7 +74,7 @@ func TestReadLoginSuccess(t *testing.T) {
 		login.Roles = roles
 	}).Return(nil)
 
-	createError := login.Read()
+	createError := login.Read(mockCQLClient)
 	assert.Nil(t, createError)
 	assert.Equal(t, login.Username, username)
 	assert.Equal(t, login.Name, name)
@@ -91,9 +82,9 @@ func TestReadLoginSuccess(t *testing.T) {
 	assert.Equal(t, login.Roles, roles)
 }
 
-func TestReadLoginError(t *testing.T) {
-	mockCQLClient := cassandra.NewMockClient()
-	login := &Login{Client: mockCQLClient}
+func TestUnitReadLoginError(t *testing.T) {
+	mockCQLClient := cassandra.NewClientMock()
+	var login Login
 	cases := []struct {
 		username  string
 		mockError error
@@ -106,30 +97,29 @@ func TestReadLoginError(t *testing.T) {
 		mockCQLClient.On("QueryOne", mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("[]interface {}")).Return(c.mockError)
 
 		login.Username = c.username
-		readError := login.Read()
+		readError := login.Read(mockCQLClient)
 		assert.NotNil(t, readError)
 		//assert.Equal(t, c.mockError, readError)
 		assert.Contains(t, readError.Error(), c.out)
 	}
 }
 
-func TestDeleteLoginSuccess(t *testing.T) {
+func TestUnitDeleteLoginSuccess(t *testing.T) {
 	username := "deleteLoginTest"
-	mockCQLClient := cassandra.NewMockClient()
+	mockCQLClient := cassandra.NewClientMock()
 	login := &Login{
-		Client:   mockCQLClient,
 		Username: username,
 	}
 
 	mockCQLClient.On("Exec", mock.AnythingOfType("string"), mock.AnythingOfType("[]interface {}")).Return(nil)
 
-	deleteError := login.Delete()
+	deleteError := login.Delete(mockCQLClient)
 	assert.Nil(t, deleteError)
 }
 
-func TestDeleteLoginError(t *testing.T) {
-	mockCQLClient := cassandra.NewMockClient()
-	login := &Login{Client: mockCQLClient}
+func TestUnitDeleteLoginError(t *testing.T) {
+	mockCQLClient := cassandra.NewClientMock()
+	var login Login
 	cases := []struct {
 		username  string
 		mockError error
@@ -142,32 +132,31 @@ func TestDeleteLoginError(t *testing.T) {
 		mockCQLClient.On("Exec", mock.AnythingOfType("string"), mock.AnythingOfType("[]interface {}")).Return(c.mockError)
 
 		login.Username = c.username
-		deleteError := login.Delete()
+		deleteError := login.Delete(mockCQLClient)
 		assert.NotNil(t, deleteError)
 		//assert.Equal(t, c.mockError, readError)
 		assert.Contains(t, deleteError.Error(), c.out)
 	}
 }
 
-func TestSetSessionSuccess(t *testing.T) {
-	logger.Setup(logger.Configuration{Provider: logger.LOGRUS})
-	mockCacheClient := cache.NewMockClient()
+func TestUnitSetSessionSuccess(t *testing.T) {
+	logger.Setup(&logger.Configuration{Provider: logger.LOGRUS})
+	mockCacheClient := cache.NewClientMock()
 	ttl := 1 * time.Hour
 	session := &Session{
-		Client: mockCacheClient,
-		ID:     "mockSession",
-		TTL:    ttl,
+		ID:  "mockSession",
+		TTL: ttl,
 	}
 	mockCacheClient.On("Set",
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
 		mock.Anything,
 	).Return(nil)
-	setError := session.Set()
+	setError := session.Set(mockCacheClient)
 	assert.Nil(t, setError)
 }
 
-func TestGetSessionSuccess(t *testing.T) {
+func TestUnitGetSessionSuccess(t *testing.T) {
 	sessionJSON := []byte(`
 		{
 			"iss": "mockIssuer",
@@ -178,13 +167,12 @@ func TestGetSessionSuccess(t *testing.T) {
 			"expiresAt": "2016-07-10T10:15:38.000-03:00"
 		}
 	`)
-	mockCacheClient := cache.NewMockClient()
+	mockCacheClient := cache.NewClientMock()
 	session := &Session{
-		Client: mockCacheClient,
-		ID:     "mockSession",
+		ID: "mockSession",
 	}
 	mockCacheClient.On("Get", mock.AnythingOfType("string")).Return(sessionJSON, nil)
-	getError := session.Get()
+	getError := session.Get(mockCacheClient)
 	assert.Nil(t, getError)
 
 	assert.Equal(t, session.Issuer, "mockIssuer")
@@ -195,7 +183,7 @@ func TestGetSessionSuccess(t *testing.T) {
 	assert.NotZero(t, session.ExpiresAt, "Session expiresAt is zero")
 }
 
-func TestSerializePublicSessionSuccess(t *testing.T) {
+func TestUnitSerializePublicSessionSuccess(t *testing.T) {
 	session := &Session{
 		ID:       "mockSession",
 		Issuer:   "mockIssuer",

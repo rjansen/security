@@ -3,8 +3,8 @@ package handler
 import (
 	"bytes"
 	"context"
-	"farm.e-pedion.com/repo/security/client/db/cassandra"
-	"farm.e-pedion.com/repo/security/client/db/mongo"
+	"farm.e-pedion.com/repo/persistence/cassandra"
+	"farm.e-pedion.com/repo/persistence/mongodb"
 	data "farm.e-pedion.com/repo/security/model"
 	// "fmt"
 	"github.com/gocql/gocql"
@@ -18,7 +18,6 @@ import (
 )
 
 func BenchmarkGetTestHandler(b *testing.B) {
-	assert.Nil(b, cassandra.Setup())
 	testHandler := NewLoadTestHandler()
 	assert.NotNil(b, testHandler)
 
@@ -113,8 +112,8 @@ func BenchmarkCassandraRead(b *testing.B) {
 	})
 }
 
-func BenchmarkMongoRead(b *testing.B) {
-	config := mongo.Configuration{
+func BenchmarkMongoDBRead(b *testing.B) {
+	config := mongodb.Configuration{
 		URL:      "127.0.0.1:27017",
 		Database: "fivecolors_test",
 		Username: "fivecolors_test",

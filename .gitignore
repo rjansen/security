@@ -12,3 +12,4 @@ tags
 *.pprof
 *.test
 nohup.out
+*.pid

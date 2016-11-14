@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"farm.e-pedion.com/repo/cache"
 	"farm.e-pedion.com/repo/logger"
+	"farm.e-pedion.com/repo/persistence"
 	"farm.e-pedion.com/repo/security/client/http/fast"
 	"farm.e-pedion.com/repo/security/identity"
 	"farm.e-pedion.com/repo/security/util"
@@ -17,9 +19,8 @@ import (
 func Authenticate(username string, password string) (*Session, error) {
 	login := &Login{
 		Username: username,
-		Client:   cassandraClient,
 	}
-	if err := login.Read(); err != nil {
+	if err := persistence.Execute(login.Read); err != nil {
 		logger.Error("Authenticate.ReadLoginError",
 			logger.String("Username", username),
 			logger.Err(err),
@@ -43,7 +44,6 @@ func Authenticate(username string, password string) (*Session, error) {
 	}
 	expires := time.Now().Add(day)
 	session := &Session{
-		Client:    cacheClient,
 		ID:        sessionID,
 		Issuer:    "e-pedion.com",
 		Username:  login.Username,
@@ -56,7 +56,7 @@ func Authenticate(username string, password string) (*Session, error) {
 			return nil, err
 		}
 	}
-	if err := session.Set(); err != nil {
+	if err := cache.Execute(session.Set); err != nil {
 		logger.Error("Authenticate.SetSessionError",
 			logger.String("Username", username),
 			logger.Err(err),
@@ -142,11 +142,10 @@ func ReadSession(token []byte) (*Session, error) {
 		return nil, err
 	}
 	session := &Session{
-		Client:   cacheClient,
 		ID:       jwt.Claims().Get("id").(string),
 		Username: jwt.Claims().Get("username").(string),
 	}
-	if err := session.Get(); err != nil {
+	if err := cache.Execute(session.Get); err != nil {
 		return nil, err
 	}
 	logger.Debug("ReadSession", logger.Struct("Session", session))
