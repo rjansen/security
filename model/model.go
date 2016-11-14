@@ -223,13 +223,10 @@ func (s *Session) Serialize() ([]byte, error) {
 		"iss":      s.Issuer,
 		"username": s.Username,
 	}
-	// if s.PrivateSession != nil {
-	// 	claims.Set("privateSession", s.Data)
-	// }
+	if len(s.Data) > 0 {
+		claims.Set("data", s.Data)
+	}
 	jwt := jws.NewJWT(claims, jwtCrypto)
 	token, err := jwt.Serialize(jwtKey)
-	// if err != nil {
-	// 	return err
-	// }
 	return token, err
 }

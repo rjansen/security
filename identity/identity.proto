@@ -10,5 +10,5 @@ message Session {
     int64 createdAt = 5;
     int64 ttl = 6;
     int64 expiresAt = 7;
-    map<string, string> data = 8;
+    bytes data = 8;
 }

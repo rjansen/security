@@ -48,11 +48,19 @@ func (a *ApiReverseProxy) HandleRequest(ctx *fasthttp.RequestCtx) {
 	}
 	//Creates a JWT to proxy the request
 	session := a.GetSession()
-	token, err := session.Serialize()
+	privateSession := identity.Session{
+		Id:       session.ID,
+		Username: session.Username,
+		Issuer:   session.Issuer,
+		Roles:    []string{"e-user"},
+		Data:     session.Data,
+	}
+	token, err := identity.Serialize(privateSession)
 	if err != nil {
 		logger.Error("ErrSerializingSession", logger.String("session", session.String()))
 		return
 	}
+
 	req.Header.Set("Authorization", fmt.Sprintf("%s: %s", a.SecurityConfig.CookieName, token))
 	logger.Debug("HeaderAuthorizationFoward",
 		logger.String(a.SecurityConfig.CookieName, session.ID),
@@ -120,7 +128,15 @@ func (a *WebReverseProxy) HandleRequest(ctx *fasthttp.RequestCtx) {
 	}
 	//Creates a JWT to proxy the request
 	session := a.GetSession()
-	token, err := session.Serialize()
+	privateSession := identity.Session{
+		Id:       session.ID,
+		Username: session.Username,
+		Issuer:   session.Issuer,
+		Roles:    []string{"e-user"},
+		Data:     session.Data,
+	}
+
+	token, err := identity.Serialize(privateSession)
 	if err != nil {
 		logger.Error("ErrSerializingSession", logger.String("session", session.String()))
 		return

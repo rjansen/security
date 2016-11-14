@@ -38,8 +38,9 @@ func init() {
 	if err = model.Setup(&myCfg.Config.Proxy, &myCfg.Config.Security); err != nil {
 		logger.Panic("security.ModelSetupErr", logger.Err(err))
 	}
+	logger.Info("security.HTTPTimeout", logger.Duration("timeout", myCfg.Config.HTTP.RequestTimeout))
 	if err = http.Setup(&myCfg.Config.HTTP); err != nil {
-		logger.Panic("secueity.HTTPSetupErr", logger.Err(err))
+		logger.Panic("security.HTTPSetupErr", logger.Err(err))
 	}
 	logger.Info("security.Setted", logger.String("Config", myCfg.Config.String()))
 }

@@ -6,7 +6,7 @@ import (
 	// "fmt"
 	// "io"
 	// "time"
-
+	"encoding/base64"
 	"farm.e-pedion.com/repo/logger"
 	"github.com/SermoDigital/jose/crypto"
 	"github.com/SermoDigital/jose/jws"
@@ -34,9 +34,14 @@ func NewSession(jwt jwt.JWT) (*Session, error) {
 	for i, v := range tempRoles {
 		claimsRoles[i] = v.(string)
 	}
-	var sessionData map[string]string
+	var sessionData []byte
 	if jwt.Claims().Has("data") {
-		sessionData = jwt.Claims().Get("data").(map[string]string)
+		dataEncoded := jwt.Claims().Get("data").(string)
+		data, err := base64.StdEncoding.DecodeString(dataEncoded)
+		if err != nil {
+			return nil, err
+		}
+		sessionData = data
 	}
 	session := &Session{
 		Issuer:   jwt.Claims().Get("iss").(string),
@@ -74,16 +79,15 @@ func Serialize(s Session) ([]byte, error) {
 		"username": s.Username,
 		"roles":    s.Roles,
 	}
-	if s.Data != nil {
-		claims.Set("data", s.Data)
+	if len(s.Data) > 0 {
+		dataStr := base64.StdEncoding.EncodeToString(s.Data)
+		if len(dataStr) <= 0 {
+			return nil, errors.New("indetity.SerializeDataErr err='Invalid raw and encoded data size'")
+		}
+		claims.Set("data", dataStr)
 	}
-	//claims.SetIssuer("e-pedion.com")
 	jwt := jws.NewJWT(claims, jwtCrypto)
 	token, err := jwt.Serialize(jwtKey)
-	// if err != nil {
-	// 	//TODO: Log?
-	// 	return err
-	// }
 	return token, err
 }
 

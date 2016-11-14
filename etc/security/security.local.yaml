@@ -34,7 +34,7 @@ cassandra:
     keepAliveDuration: 60000000000
 
 http:
-    request_timeout: 500
+    request_timeout: 5000000000
     max_conns_perhost: 250
 
 proxy:
