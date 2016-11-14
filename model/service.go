@@ -27,6 +27,7 @@ func Authenticate(username string, password string) (*Session, error) {
 		)
 		return nil, err
 	}
+	logger.Info("model.Authenticate", logger.String("User", login.String()))
 	if err := login.CheckCredentials(password); err != nil {
 		logger.Error("Authenticate.CheckCredentialsError",
 			logger.String("Username", username),
@@ -91,6 +92,7 @@ func loginCallback(cookieName string, loginCallbackURL string, session *Session)
 	privateSession := identity.Session{
 		Id:       privateSessionID,
 		Username: session.Username,
+		Roles:    []string{"e-user"},
 		Issuer:   "e-pedion.com/security",
 	}
 	token, err := identity.Serialize(privateSession)

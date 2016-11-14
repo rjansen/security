@@ -13,7 +13,7 @@ import (
 	"farm.e-pedion.com/repo/persistence"
 	"farm.e-pedion.com/repo/persistence/cassandra"
 	"farm.e-pedion.com/repo/security/client/http"
-	"farm.e-pedion.com/repo/security/config"
+	"farm.e-pedion.com/repo/security/identity"
 	"github.com/SermoDigital/jose/crypto"
 	"github.com/SermoDigital/jose/jws"
 )
@@ -23,8 +23,8 @@ const (
 )
 
 var (
-	proxyConfig    *config.ProxyConfig
-	securityConfig *config.SecurityConfig
+	proxyConfig    *identity.ProxyConfig
+	securityConfig *identity.SecurityConfig
 	httpClient     http.Client
 	//memoryCache    = make(map[string]*identity.Session)
 
@@ -35,7 +35,7 @@ var (
 )
 
 //Setup configures the package
-func Setup(proxyCfg *config.ProxyConfig, securityCfg *config.SecurityConfig) error {
+func Setup(proxyCfg *identity.ProxyConfig, securityCfg *identity.SecurityConfig) error {
 	logger.Info("data.SetupStart")
 	proxyConfig = proxyCfg
 	securityConfig = securityCfg

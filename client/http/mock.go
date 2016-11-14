@@ -4,49 +4,49 @@ import (
 	testify "github.com/stretchr/testify/mock"
 )
 
-func NewMockRequest() Request {
-	return &mockRequest{}
+func NewRequestMock() *RequestMock {
+	return new(RequestMock)
 }
 
-type mockRequest struct {
+type RequestMock struct {
 	testify.Mock
 }
 
-func (r *mockRequest) Method() Method {
+func (r *RequestMock) Method() Method {
 	args := r.Called()
 	return args.Get(0).(Method)
 }
 
-func (r *mockRequest) URL() string {
+func (r *RequestMock) URL() string {
 	args := r.Called()
 	return args.String(0)
 }
-func (r *mockRequest) Headers() map[string]string {
+func (r *RequestMock) Headers() map[string]string {
 	args := r.Called()
 	return args.Get(0).(map[string]string)
 }
-func (r *mockRequest) ContentType() ContentType {
+func (r *RequestMock) ContentType() ContentType {
 	args := r.Called()
 	return args.Get(0).(ContentType)
 }
-func (r *mockRequest) ContentLength() int {
+func (r *RequestMock) ContentLength() int {
 	args := r.Called()
 	return args.Int(0)
 }
-func (r *mockRequest) Body() []byte {
+func (r *RequestMock) Body() []byte {
 	args := r.Called()
 	return args.Get(0).([]byte)
 }
 
-func NewMockResponse() Response {
-	return &mockResponse{}
+func NewResponseMock() *ResponseMock {
+	return new(ResponseMock)
 }
 
-type mockResponse struct {
+type ResponseMock struct {
 	testify.Mock
 }
 
-func (r *mockResponse) Headers() map[string]string {
+func (r *ResponseMock) Headers() map[string]string {
 	args := r.Called()
 	headersMap := args.Get(0)
 	if headersMap != nil {
@@ -55,15 +55,15 @@ func (r *mockResponse) Headers() map[string]string {
 	return nil
 }
 
-func (r *mockResponse) ContentType() ContentType {
+func (r *ResponseMock) ContentType() ContentType {
 	args := r.Called()
 	return args.Get(0).(ContentType)
 }
-func (r *mockResponse) ContentLength() int {
+func (r *ResponseMock) ContentLength() int {
 	args := r.Called()
 	return args.Int(0)
 }
-func (r *mockResponse) Body() []byte {
+func (r *ResponseMock) Body() []byte {
 	args := r.Called()
 	body := args.Get(0)
 	if body != nil {
@@ -71,20 +71,20 @@ func (r *mockResponse) Body() []byte {
 	}
 	return nil
 }
-func (r *mockResponse) StatusCode() int {
+func (r *ResponseMock) StatusCode() int {
 	args := r.Called()
 	return args.Int(0)
 }
 
-func NewMockClient() Client {
-	return &mockClient{}
+func NewClientMock() *ClientMock {
+	return new(ClientMock)
 }
 
-type mockClient struct {
+type ClientMock struct {
 	testify.Mock
 }
 
-func (c *mockClient) Request(method Method, url string, body []byte, headers map[string]string) (Response, error) {
+func (c *ClientMock) Request(method Method, url string, body []byte, headers map[string]string) (Response, error) {
 	args := c.Called(method, url, body, headers)
 	response := args.Get(0)
 	if response != nil {
@@ -92,7 +92,7 @@ func (c *mockClient) Request(method Method, url string, body []byte, headers map
 	}
 	return nil, args.Error(1)
 }
-func (c *mockClient) HEAD(url string, headers map[string]string) (Response, error) {
+func (c *ClientMock) HEAD(url string, headers map[string]string) (Response, error) {
 	args := c.Called(url, headers)
 	response := args.Get(0)
 	if response != nil {
@@ -100,7 +100,7 @@ func (c *mockClient) HEAD(url string, headers map[string]string) (Response, erro
 	}
 	return nil, args.Error(1)
 }
-func (c *mockClient) GET(url string, headers map[string]string) (Response, error) {
+func (c *ClientMock) GET(url string, headers map[string]string) (Response, error) {
 	args := c.Called(url, headers)
 	response := args.Get(0)
 	if response != nil {
@@ -108,7 +108,7 @@ func (c *mockClient) GET(url string, headers map[string]string) (Response, error
 	}
 	return nil, args.Error(1)
 }
-func (c *mockClient) POST(url string, body []byte, headers map[string]string) (Response, error) {
+func (c *ClientMock) POST(url string, body []byte, headers map[string]string) (Response, error) {
 	args := c.Called(url, body, headers)
 	response := args.Get(0)
 	if response != nil {
@@ -116,7 +116,7 @@ func (c *mockClient) POST(url string, body []byte, headers map[string]string) (R
 	}
 	return nil, args.Error(1)
 }
-func (c *mockClient) PUT(url string, body []byte, headers map[string]string) (Response, error) {
+func (c *ClientMock) PUT(url string, body []byte, headers map[string]string) (Response, error) {
 	args := c.Called(url, body, headers)
 	response := args.Get(0)
 	if response != nil {
@@ -124,7 +124,7 @@ func (c *mockClient) PUT(url string, body []byte, headers map[string]string) (Re
 	}
 	return nil, args.Error(1)
 }
-func (c *mockClient) DELETE(url string, body []byte, headers map[string]string) (Response, error) {
+func (c *ClientMock) DELETE(url string, body []byte, headers map[string]string) (Response, error) {
 	args := c.Called(url, body, headers)
 	response := args.Get(0)
 	if response != nil {
@@ -132,7 +132,7 @@ func (c *mockClient) DELETE(url string, body []byte, headers map[string]string) 
 	}
 	return nil, args.Error(1)
 }
-func (c *mockClient) Close() error {
+func (c *ClientMock) Close() error {
 	args := c.Called()
 	return args.Error(0)
 }

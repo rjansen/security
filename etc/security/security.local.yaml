@@ -1,6 +1,10 @@
 version: "0.0.1-young"
 environment: "local"
 
+handler:
+    version: "1.0"
+    bind: ":7080"
+
 logger:
     root:
         debug: false
@@ -33,18 +37,6 @@ http:
     request_timeout: 500
     max_conns_perhost: 250
 
-security:
-    encrypt_cost: 10
-    cookie_name: "FIVECOLORS_ID"
-    cookie_domain: "moon.e-pedion.com"
-    cookie_path: "/"
-    client_use_custom_ssl_certificate: false
-    custom_ssl_certificate_path: "/Users/raphaeljansen/Apps/Cert/startcom.sha2.root.ca.crt"
-
-handler:
-    version: "1.0"
-    bind: ":7080"
-
 proxy:
     api_url: "http://127.0.0.1:4000"
     web_url: "http://127.0.0.1:3000"
@@ -57,3 +49,11 @@ proxy:
     form_uri: "/auth/login/"
     form_username_field: "fivecolors_username"
     form_password_field: "fivecolors_password"
+
+security:
+    encrypt_cost: 10
+    cookie_name: "FIVECOLORS_ID"
+    cookie_domain: "moon.e-pedion.com"
+    cookie_path: "/"
+    client_use_custom_ssl_certificate: false
+    custom_ssl_certificate_path: "/Users/raphaeljansen/Apps/Cert/startcom.sha2.root.ca.crt"

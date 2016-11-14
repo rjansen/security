@@ -20,6 +20,7 @@ var (
 
 func init() {
 	os.Args = append(os.Args, "-ecf", "../test/etc/security/benchmark.yaml")
+	logger.Setup(&logger.Configuration{})
 	logger.Info("model_test.init")
 }
 

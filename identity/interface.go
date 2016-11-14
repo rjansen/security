@@ -29,11 +29,11 @@ func NewSession(jwt jwt.JWT) (*Session, error) {
 	if !jwt.Claims().Has("iss") || !jwt.Claims().Has("id") || !jwt.Claims().Has("username") || !jwt.Claims().Has("roles") {
 		return nil, errors.New("Some required parameter is missing: iss, id, username, roles")
 	}
-	claimsRoles := jwt.Claims().Get("roles").([]string)
-	// roles := make([]string, len(claimsRoles))
-	// for k, v := range roles {
-	// 	roles[k] = string(v)
-	// }
+	tempRoles := jwt.Claims().Get("roles").([]interface{})
+	claimsRoles := make([]string, len(tempRoles))
+	for i, v := range tempRoles {
+		claimsRoles[i] = v.(string)
+	}
 	var sessionData map[string]string
 	if jwt.Claims().Has("data") {
 		sessionData = jwt.Claims().Get("data").(map[string]string)

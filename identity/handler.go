@@ -7,9 +7,19 @@ import (
 	"strings"
 
 	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/security/config"
 	"github.com/valyala/fasthttp"
 )
+
+var (
+	proxyConfig    *ProxyConfig
+	securityConfig *SecurityConfig
+)
+
+func Setup(proxyCfg *ProxyConfig, securityCfg *SecurityConfig) error {
+	proxyConfig = proxyCfg
+	securityConfig = securityCfg
+	return nil
+}
 
 type Handler interface {
 	ServeHTTP(w http.ResponseWriter, r *http.Request)
@@ -37,15 +47,15 @@ func (p *AuthenticatedHandler) GetSession() *Session {
 func NewCookieAuthenticatedHandler(handler AuthenticatableHandler) http.Handler {
 	return &CookieAuthenticatedHandler{
 		AuthenticatableHandler: handler,
-		ProxyConfig:            config.Config.Proxy,
-		SecurityConfig:         config.Config.Security,
+		ProxyConfig:            *proxyConfig,
+		SecurityConfig:         *securityConfig,
 	}
 }
 
 type CookieAuthenticatedHandler struct {
 	AuthenticatableHandler
-	config.ProxyConfig
-	config.SecurityConfig
+	ProxyConfig
+	SecurityConfig
 }
 
 func (handler *CookieAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

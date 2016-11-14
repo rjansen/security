@@ -12,6 +12,8 @@ import (
 	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/persistence"
 	"farm.e-pedion.com/repo/security/config"
+	"farm.e-pedion.com/repo/security/identity"
+
 	data "farm.e-pedion.com/repo/security/model"
 	"farm.e-pedion.com/repo/security/view"
 
@@ -51,8 +53,8 @@ func NewSessionCookieHandler(handler AuthenticatableHandler) FastHttpHandler {
 
 type SessionCookieHandler struct {
 	AuthenticatableHandler
-	config.ProxyConfig
-	config.SecurityConfig
+	identity.ProxyConfig
+	identity.SecurityConfig
 }
 
 func (handler *SessionCookieHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -208,8 +210,8 @@ func NewAuthHandler() *AuthHandler {
 }
 
 type AuthHandler struct {
-	config.ProxyConfig
-	config.SecurityConfig
+	identity.ProxyConfig
+	identity.SecurityConfig
 }
 
 func (l *AuthHandler) renderLoginPage(ctx *fasthttp.RequestCtx, parameters data.LoginPageData) {
@@ -341,8 +343,8 @@ func NewLogoutHandler() FastHttpHandler {
 
 type LogoutHandler struct {
 	AuthenticatedHandler
-	config.SecurityConfig
-	config.ProxyConfig
+	identity.SecurityConfig
+	identity.ProxyConfig
 }
 
 func (l *LogoutHandler) HandleRequest(ctx *fasthttp.RequestCtx) {

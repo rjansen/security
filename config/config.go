@@ -5,6 +5,7 @@ import (
 	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/persistence/cassandra"
 	"farm.e-pedion.com/repo/security/client/http"
+	"farm.e-pedion.com/repo/security/identity"
 	"fmt"
 )
 
@@ -20,9 +21,9 @@ type Configuration struct {
 	Memcached   memcached.Configuration `mapstructure:"memcached"`
 	Cassandra   cassandra.Configuration `mapstructure:"cassandra"`
 	HTTP        http.Configuration      `mapstrucure:"http"`
-	Security    SecurityConfig          `mapstrucure:"security"`
+	Security    identity.SecurityConfig `mapstrucure:"security"`
 	Handler     HandlerConfig           `mapstructure:"handler"`
-	Proxy       ProxyConfig             `mapstrucure:"proxy"`
+	Proxy       identity.ProxyConfig    `mapstrucure:"proxy"`
 }
 
 func (c Configuration) String() string {

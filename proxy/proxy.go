@@ -10,6 +10,7 @@ import (
 	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/security/config"
 	"farm.e-pedion.com/repo/security/handler"
+	"farm.e-pedion.com/repo/security/identity"
 	"github.com/valyala/fasthttp"
 )
 
@@ -32,7 +33,7 @@ func NewApiReverseProxy(targetURL *url.URL) handler.FastHttpHandler {
 
 type ApiReverseProxy struct {
 	handler.AuthenticatedHandler
-	config.SecurityConfig
+	identity.SecurityConfig
 	ProxyURL     *url.URL
 	reverseProxy *httputil.ReverseProxy
 	proxyClient  *fasthttp.HostClient
@@ -104,7 +105,7 @@ func NewWebReverseProxy(targetURL *url.URL) handler.FastHttpHandler {
 
 type WebReverseProxy struct {
 	handler.AuthenticatedHandler
-	config.SecurityConfig
+	identity.SecurityConfig
 	ProxyURL     *url.URL
 	reverseProxy *httputil.ReverseProxy
 	proxyClient  *fasthttp.HostClient

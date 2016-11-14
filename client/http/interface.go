@@ -1,7 +1,6 @@
 package http
 
 import (
-	"farm.e-pedion.com/repo/config"
 	"fmt"
 	"time"
 )
@@ -41,10 +40,8 @@ func (c Configuration) String() string {
 }
 
 //Setup initializes the package
-func Setup() error {
-	if err := config.UnmarshalKey("http", Config); err != nil {
-		return err
-	}
+func Setup(cfg *Configuration) error {
+	Config = cfg
 	return nil
 }
 
