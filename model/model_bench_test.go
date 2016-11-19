@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func BenchCreateLoginSuccess(b *testing.B) {
+func BenchmarkCreateLoginSuccess(b *testing.B) {
 	cqlClient := getPersistenceClient(b)
 
 	b.ResetTimer()
@@ -25,7 +25,7 @@ func BenchCreateLoginSuccess(b *testing.B) {
 	})
 }
 
-func BenchmarkReadLoginSuccess(b *testing.B) {
+func BenchmarkmarkReadLoginSuccess(b *testing.B) {
 	username := "makefile1"
 	cqlClient := getPersistenceClient(b)
 	b.ResetTimer()
@@ -45,7 +45,7 @@ func BenchmarkReadLoginSuccess(b *testing.B) {
 	})
 }
 
-func BenchmarkSetSessionSuccess(b *testing.B) {
+func BenchmarkmarkSetSessionSuccess(b *testing.B) {
 	cacheClient := getCacheClient(b)
 	ttl := 1 * time.Hour
 	id := "mockSession"
@@ -62,7 +62,7 @@ func BenchmarkSetSessionSuccess(b *testing.B) {
 	})
 }
 
-func BenchmarkGetSessionSuccess(b *testing.B) {
+func BenchmarkmarkGetSessionSuccess(b *testing.B) {
 	sessionJSON := []byte(`
 		{
 			"iss": "mockIssuer",
@@ -96,7 +96,7 @@ func BenchmarkGetSessionSuccess(b *testing.B) {
 	})
 }
 
-func BenchSerializePublicSessionSuccess(b *testing.B) {
+func BenchmarkSerializePublicSessionSuccess(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
