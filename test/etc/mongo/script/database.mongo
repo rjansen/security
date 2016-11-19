@@ -1,0 +1,2 @@
+use fivecolors_test;
+db.createUser({user: "fivecolors_test", pwd: "fivecolors_test", roles: [{role: "dbOwner", db: "fivecolors_test"}]});

@@ -1,0 +1,59 @@
+version: "0.0.1-young"
+environment: "local"
+
+handler:
+    version: "1.0"
+    bind: ":7080"
+
+logger:
+    root:
+        debug: false
+        provider: "logrus"
+        level: "panic"
+        format: "text_color"
+        out: "stdout"
+        hooks:
+            syslog:
+                address: tcp(127.0.0.1:1521)
+                priority: debug
+    access:
+        provider: "logrus"
+        level: "info"
+        format: "json"
+        out: "./security.access.log"
+
+memcached:
+    url: "127.0.0.1:11211"
+
+cassandra:
+    url: "127.0.0.1:9042"
+    keyspace: "fivecolors"
+    username: "fivecolors"
+    password: "fivecolors"
+    numConns: 10
+    keepAliveDuration: 60000000000
+
+http:
+    request_timeout: 5000000000
+    max_conns_perhost: 250
+
+proxy:
+    api_url: "http://127.0.0.1:4000"
+    web_url: "http://127.0.0.1:3000"
+    #login_url: "https://moon.e-pedion.com:8443/fivecolors/auth/login"
+    login_url: "http://localhost:7080/auth/login"
+    use_login_callback: true
+    login_callback_url: "http://127.0.0.1:4000/player/"
+    #redirect_url: "https://moon.e-pedion.com:8443/fivecolors/web"
+    redirect_url: "http://localhost:7080/web/#/inventory"
+    form_uri: "/auth/login/"
+    form_username_field: "fivecolors_username"
+    form_password_field: "fivecolors_password"
+
+security:
+    encrypt_cost: 10
+    cookie_name: "FIVECOLORS_ID"
+    cookie_domain: "moon.e-pedion.com"
+    cookie_path: "/"
+    client_use_custom_ssl_certificate: false
+    custom_ssl_certificate_path: "/Users/raphaeljansen/Apps/Cert/startcom.sha2.root.ca.crt"

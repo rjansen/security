@@ -1,0 +1,2 @@
+use fivecolors_test;
+db.dropUser('fivecolors_test');

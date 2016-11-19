@@ -1,6 +1,15 @@
 *.ecf
 *.ini
+*.log
+*.qtpl.go
+*.fasthttp.gz
 *.conf
+*.coverage*
 tags
-main
-security
+/security
+/vendor/*/
+/.vscode/
+*.pprof
+*.test
+nohup.out
+*.pid
