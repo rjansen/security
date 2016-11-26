@@ -46,8 +46,8 @@ func (p *AuthenticatedHandler) GetSession() *data.Session {
 func NewSessionCookieHandler(handler AuthenticatableHandler) FastHttpHandler {
 	return &SessionCookieHandler{
 		AuthenticatableHandler: handler,
-		ProxyConfig:            config.Config.Proxy,
-		SecurityConfig:         config.Config.Security,
+		ProxyConfig:            config.Config.Identity.Proxy,
+		SecurityConfig:         config.Config.Identity.Security,
 	}
 }
 
@@ -204,8 +204,8 @@ func (handler *SessionHeaderHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 
 func NewAuthHandler() *AuthHandler {
 	return &AuthHandler{
-		ProxyConfig:    config.Config.Proxy,
-		SecurityConfig: config.Config.Security,
+		ProxyConfig:    config.Config.Identity.Proxy,
+		SecurityConfig: config.Config.Identity.Security,
 	}
 }
 
@@ -329,11 +329,11 @@ func (l *AuthHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 func NewLogoutHandler() FastHttpHandler {
 	return &SessionCookieHandler{
 		AuthenticatableHandler: &LogoutHandler{
-			SecurityConfig: config.Config.Security,
-			ProxyConfig:    config.Config.Proxy,
+			SecurityConfig: config.Config.Identity.Security,
+			ProxyConfig:    config.Config.Identity.Proxy,
 		},
-		ProxyConfig:    config.Config.Proxy,
-		SecurityConfig: config.Config.Security,
+		ProxyConfig:    config.Config.Identity.Proxy,
+		SecurityConfig: config.Config.Identity.Security,
 	}
 	// return &LogoutHandler{
 	// 	SecurityConfig: config.BindSecurityConfiguration(),
@@ -401,8 +401,8 @@ func (l *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewGetSessionHandler() FastHttpHandler {
 	return &SessionCookieHandler{
 		AuthenticatableHandler: &GetSessionHandler{},
-		ProxyConfig:            config.Config.Proxy,
-		SecurityConfig:         config.Config.Security,
+		ProxyConfig:            config.Config.Identity.Proxy,
+		SecurityConfig:         config.Config.Identity.Security,
 	}
 }
 
@@ -465,8 +465,8 @@ func (h *GetSessionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewValidateSessionHandler() FastHttpHandler {
 	return &SessionCookieHandler{
 		AuthenticatableHandler: &ValidateSessionHandler{},
-		ProxyConfig:            config.Config.Proxy,
-		SecurityConfig:         config.Config.Security,
+		ProxyConfig:            config.Config.Identity.Proxy,
+		SecurityConfig:         config.Config.Identity.Security,
 	}
 }
 
@@ -505,13 +505,13 @@ func NewLoginManagerHandler() FastHttpHandler {
 	return NewRequestMethodHandler(
 		&SessionCookieHandler{
 			AuthenticatableHandler: &GetLoginHandler{},
-			ProxyConfig:            config.Config.Proxy,
-			SecurityConfig:         config.Config.Security,
+			ProxyConfig:            config.Config.Identity.Proxy,
+			SecurityConfig:         config.Config.Identity.Security,
 		},
 		&SessionCookieHandler{
 			AuthenticatableHandler: &PostLoginHandler{},
-			ProxyConfig:            config.Config.Proxy,
-			SecurityConfig:         config.Config.Security,
+			ProxyConfig:            config.Config.Identity.Proxy,
+			SecurityConfig:         config.Config.Identity.Security,
 		})
 }
 

@@ -8,15 +8,12 @@ import (
 	myFast "farm.e-pedion.com/repo/context/fast"
 	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/persistence/cassandra"
-	// "farm.e-pedion.com/repo/persistence"
 	"farm.e-pedion.com/repo/security/client/http"
 	myCfg "farm.e-pedion.com/repo/security/config"
 	"farm.e-pedion.com/repo/security/handler"
 	"farm.e-pedion.com/repo/security/model"
 	"farm.e-pedion.com/repo/security/proxy"
 	"github.com/valyala/fasthttp"
-	"net/url"
-	//"time"
 )
 
 func init() {
@@ -35,33 +32,26 @@ func init() {
 	if err = cassandra.Setup(&myCfg.Config.Cassandra); err != nil {
 		logger.Panic("security.CassandraSetupErr", logger.Err(err))
 	}
-	if err = model.Setup(&myCfg.Config.Proxy, &myCfg.Config.Security); err != nil {
+	if err = model.Setup(&myCfg.Config.Identity); err != nil {
 		logger.Panic("security.ModelSetupErr", logger.Err(err))
 	}
-	logger.Info("security.HTTPTimeout", logger.Duration("timeout", myCfg.Config.HTTP.RequestTimeout))
 	if err = http.Setup(&myCfg.Config.HTTP); err != nil {
 		logger.Panic("security.HTTPSetupErr", logger.Err(err))
+	}
+	if err = proxy.Setup(&myCfg.Config.Identity); err != nil {
+		logger.Panic("security.ProxySetupErr", logger.Err(err))
 	}
 	logger.Info("security.Setted", logger.String("Config", myCfg.Config.String()))
 }
 
 func main() {
-	webRemote, err := url.Parse(myCfg.Config.Proxy.WebURL)
-	if err != nil {
-		logger.Panic("security.WebURLInvalidErr", logger.Err(err))
-	}
-	apiRemote, err := url.Parse(myCfg.Config.Proxy.ApiURL)
-	if err != nil {
-		logger.Panic("security.ApiURLInvalidErr", logger.Err(err))
-	}
-
 	authHandler := handler.NewAuthHandler()
 	logoutHandler := handler.NewLogoutHandler()
 	sessionHandler := handler.NewGetSessionHandler()
 	validateSessionHandler := handler.NewValidateSessionHandler()
 	identityHandler := handler.NewLoginManagerHandler()
-	webProxy := proxy.NewWebReverseProxy(webRemote)
-	apiProxy := proxy.NewApiReverseProxy(apiRemote)
+	webProxy := proxy.NewWebReverseProxy()
+	apiProxy := proxy.NewApiReverseProxy()
 
 	// assetsFS := &fasthttp.FS{
 	// 	// Path to directory to serve.
@@ -140,7 +130,7 @@ func main() {
 		logger.String("Version", myCfg.Config.Version),
 		logger.String("BindAddress", myCfg.Config.Handler.BindAddress),
 	)
-	err = fasthttp.ListenAndServe(myCfg.Config.Handler.BindAddress, httpHandler)
+	err := fasthttp.ListenAndServe(myCfg.Config.Handler.BindAddress, httpHandler)
 	if err != nil {
 		logger.Panic("security.Err",
 			logger.String("Version", myCfg.Config.Version),

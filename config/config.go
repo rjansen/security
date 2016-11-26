@@ -21,22 +21,20 @@ type Configuration struct {
 	Memcached   memcached.Configuration `mapstructure:"memcached"`
 	Cassandra   cassandra.Configuration `mapstructure:"cassandra"`
 	HTTP        http.Configuration      `mapstrucure:"http"`
-	Security    identity.SecurityConfig `mapstrucure:"security"`
 	Handler     HandlerConfig           `mapstructure:"handler"`
-	Proxy       identity.ProxyConfig    `mapstrucure:"proxy"`
+	Identity    identity.Configuration  `mapstrucure:"identity"`
 }
 
 func (c Configuration) String() string {
 	//return fmt.Sprintf("Configuration[Version=%v ProxyConfig=%v DBConfig=%v SecurityConfig=%v CacheConfig=%v LoggerConfig=%v]", c.Version, c.ProxyConfig, c.DBConfig, c.SecurityConfig, c.CacheConfig, c.LoggerConfig)
-	return fmt.Sprintf("Configuration Version=%s Environment=%s Logger=%s Memcached=%s Cassandra=%s HTTP=%s Security=%s Handler=%s Proxy=%s",
+	return fmt.Sprintf("Configuration Version=%s Environment=%s Logger=%s Memcached=%s Cassandra=%s HTTP=%s Handler=%s Identity=%s",
 		c.Version, c.Environment,
 		c.Logger.String(),
 		c.Memcached.String(),
 		c.Cassandra.String(),
 		c.HTTP.String(),
-		c.Security.String(),
 		c.Handler.String(),
-		c.Proxy.String(),
+		c.Identity.String(),
 	)
 }
 

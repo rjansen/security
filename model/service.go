@@ -43,14 +43,13 @@ func Authenticate(username string, password string) (*Session, error) {
 		)
 		return nil, err
 	}
-	expires := time.Now().Add(day)
 	session := &Session{
 		ID:        sessionID,
 		Issuer:    "e-pedion.com",
 		Username:  login.Username,
 		CreatedAt: time.Now(),
 		TTL:       day,
-		ExpiresAt: expires,
+		ExpiresAt: time.Now().Add(day),
 	}
 	if proxyConfig.UseLoginCallback {
 		if err := loginCallback(securityConfig.CookieName, proxyConfig.LoginCallbackURL, session); err != nil {

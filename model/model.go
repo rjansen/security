@@ -35,10 +35,10 @@ var (
 )
 
 //Setup configures the package
-func Setup(proxyCfg *identity.ProxyConfig, securityCfg *identity.SecurityConfig) error {
+func Setup(cfg *identity.Configuration) error {
 	logger.Info("data.SetupStart")
-	proxyConfig = proxyCfg
-	securityConfig = securityCfg
+	proxyConfig = &cfg.Proxy
+	securityConfig = &cfg.Security
 	logger.Info("data.SetupEnd")
 	return nil
 }
@@ -222,9 +222,6 @@ func (s *Session) Serialize() ([]byte, error) {
 		"id":       s.ID,
 		"iss":      s.Issuer,
 		"username": s.Username,
-	}
-	if len(s.Data) > 0 {
-		claims.Set("data", s.Data)
 	}
 	jwt := jws.NewJWT(claims, jwtCrypto)
 	token, err := jwt.Serialize(jwtKey)

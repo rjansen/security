@@ -2,45 +2,70 @@ package util
 
 import (
 	"crypto/rand"
+	"encoding/binary"
+	"sync/atomic"
+
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 
 	"farm.e-pedion.com/repo/config"
 	"farm.e-pedion.com/repo/logger"
+	"github.com/satori/go.uuid"
 )
 
-/*
-security:
-    encrypt_cost: 10
-    cookie_name: "FIVECOLORS_ID"
-    cookie_domain: "darkside.e-pedion.com"
-    cookie_path: "/"
-    client_use_custom_ssl_certificate: false
-    custom_ssl_certificate_path: "/Users/raphaeljansen/Apps/Cert/startcom.sha2.root.ca.crt"
-*/
 var (
+	idSeed               [24]byte
+	idCounter            uint64
 	certPool             *x509.CertPool
 	customSSLCertPathKey = "security.custom_ssl_certificate_path"
 	useCustomSSLCertKey  = "security.client_use_custom_ssl_certificate"
 )
 
-// NewUUID generates a random UUID according to RFC 4122
-func NewUUID() (string, error) {
-	uuid := make([]byte, 16)
-	n, err := io.ReadFull(rand.Reader, uuid)
-	if n != len(uuid) || err != nil {
-		return "", err
+func init() {
+	_, err := rand.Read(idSeed[:])
+	if err != nil {
+		panic(err)
 	}
-	// variant bits; see section 4.1.1
-	uuid[8] = uuid[8]&^0xc0 | 0x80
-	// version 4 (pseudo-random); see section 4.1.3
-	uuid[6] = uuid[6]&^0xf0 | 0x40
-	return fmt.Sprintf("%x-%x-%x-%x-%x", uuid[0:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:]), nil
+}
+
+// NewUUID generates a new random v4 UUID, it is RFC 4122 compliant
+func NewUUID() (string, error) {
+	uid := uuid.NewV4()
+	return uid.String(), nil
+}
+
+// NewID generates a new random 16 bytes id, it ignores the RFC 4122
+func NewID() string {
+	id := NewRawID()
+	return fmt.Sprintf("%x", id[:16])
+}
+
+// NewLongID generates a new random 24 bytes id, it ignores the RFC 4122
+func NewLongID() string {
+	id := NewRawID()
+	return fmt.Sprintf("%x", id)
+}
+
+// NewRawID returns the next raw UUID bytes from the generator
+// Only the first 8 bytes can differ from the previous
+// UUID, so taking a slice of the first 16 bytes
+// is sufficient to provide a somewhat less secure 128 bit UUID.
+//
+// It is OK to call this method concurrently.
+func NewRawID() [24]byte {
+	newCounter := atomic.AddUint64(&idCounter, 1)
+	var counterBytes [8]byte
+	binary.LittleEndian.PutUint64(counterBytes[:], newCounter)
+
+	id := idSeed
+	for i, b := range counterBytes {
+		id[i] ^= b
+	}
+	return id
 }
 
 //GetCertPool returns a tls certificate pool with the configured certificate inside it
