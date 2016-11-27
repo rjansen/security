@@ -1,12 +1,11 @@
 package identity
 
 import (
-	// "encoding/json"
+	"encoding/json"
 	"errors"
-	// "fmt"
-	// "io"
+	"fmt"
+	"io"
 	// "time"
-	"encoding/base64"
 	"farm.e-pedion.com/repo/logger"
 	"github.com/SermoDigital/jose/crypto"
 	"github.com/SermoDigital/jose/jws"
@@ -34,18 +33,13 @@ func NewSession(jwt jwt.JWT) (*Session, error) {
 	for i, v := range tempRoles {
 		claimsRoles[i] = v.(string)
 	}
-	var sessionData []byte
+	var sessionData map[string]interface{}
 	if jwt.Claims().Has("data") {
-		dataEncoded := jwt.Claims().Get("data").(string)
-		data, err := base64.StdEncoding.DecodeString(dataEncoded)
-		if err != nil {
-			return nil, err
-		}
-		sessionData = data
+		sessionData = jwt.Claims().Get("data").(map[string]interface{})
 	}
 	session := &Session{
 		Issuer:   jwt.Claims().Get("iss").(string),
-		Id:       jwt.Claims().Get("id").(string),
+		ID:       jwt.Claims().Get("id").(string),
 		Username: jwt.Claims().Get("username").(string),
 		// Roles:    roles,
 		Roles: claimsRoles,
@@ -75,50 +69,50 @@ func ReadSession(token []byte) (*Session, error) {
 func Serialize(s Session) ([]byte, error) {
 	claims := jws.Claims{
 		"iss":      s.Issuer,
-		"id":       s.Id,
+		"id":       s.ID,
 		"username": s.Username,
 		"roles":    s.Roles,
 	}
-	if len(s.Data) > 0 {
-		dataStr := base64.StdEncoding.EncodeToString(s.Data)
-		if len(dataStr) <= 0 {
-			return nil, errors.New("indetity.SerializeDataErr err='Invalid raw and encoded data size'")
-		}
-		claims.Set("data", dataStr)
+	if s.Data != nil {
+		claims.Set("data", s.Data)
 	}
 	jwt := jws.NewJWT(claims, jwtCrypto)
 	token, err := jwt.Serialize(jwtKey)
 	return token, err
 }
 
-//Session represents a identity session in the system
-// type Session struct {
-// 	Issuer     string                 `json:"iss"`
-// 	ID         string                 `json:"id"`
-// 	Username   string                 `json:"username"`
-// 	Roles      []string               `json:"roles"`
-// 	Data       map[string]interface{} `json:"data"`
-// 	CreateDate time.Time              `json:"createDate"`
-// 	TTL        time.Duration          `json:"ttl"`
-// 	Expires    time.Time              `json:"expires"`
-// 	Token      []byte                 `json:"-"`
-// }
+// Session represents a identity session in the system
+type Session struct {
+	Issuer   string                 `json:"iss"`
+	ID       string                 `json:"id"`
+	Username string                 `json:"username"`
+	Roles    []string               `json:"roles"`
+	Data     map[string]interface{} `json:"data"`
+	// CreateDate time.Time              `json:"createDate"`
+	// TTL        time.Duration          `json:"ttl"`
+	// Expires    time.Time              `json:"expires"`
+	// Token      []byte                 `json:"-"`
+}
 
 // func (s *Session) String() string {
 // 	return fmt.Sprintf("Session[TTL=%v Issuer=%v ID=%v Username=%v Roles=%v]", s.TTL, s.Issuer, s.ID, s.Username, s.Roles)
 // }
 
-// //Marshal creates a plain JSON representation of the Session
-// func (s *Session) Marshal() ([]byte, error) {
-// 	return json.Marshal(&s)
-// }
+func (s *Session) String() string {
+	return fmt.Sprintf("Session[Issuer=%v ID=%v Username=%v Roles=%v]", s.Issuer, s.ID, s.Username, s.Roles)
+}
 
-// //Unmarshal converts the parameter JSON representation into a instance of the Session
-// func (s *Session) Unmarshal(reader io.Reader) error {
-// 	return json.NewDecoder(reader).Decode(&s)
-// }
+//Marshal creates a plain JSON representation of the Session
+func (s *Session) Marshal() ([]byte, error) {
+	return json.Marshal(&s)
+}
 
-// //Serialize writes a JWT representation of this Session in the Token field
+//Unmarshal converts the parameter JSON representation into a instance of the Session
+func (s *Session) Unmarshal(reader io.Reader) error {
+	return json.NewDecoder(reader).Decode(&s)
+}
+
+//Serialize writes a JWT representation of this Session in the Token field
 // func (s *Session) Serialize() error {
 // 	claims := jws.Claims{
 // 		"iss":      s.Issuer,

@@ -114,7 +114,7 @@ docker: build_linux
 protoc:
 	@echo "Protocol Buffer Generating Proto@$(VERSION)-$(BUILD)"
 	protoc --go_out=./ ./view/*.proto
-	protoc --go_out=./ ./identity/*.proto
+	#protoc --go_out=./ ./identity/*.proto
 
 .PHONY: qtc
 qtc:

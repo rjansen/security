@@ -5,6 +5,17 @@ import (
 	"fmt"
 )
 
+type Configuration struct {
+	Proxy    ProxyConfig    `mapstructure:"proxy"`
+	Security SecurityConfig `mapstructure:"security"`
+}
+
+func (c Configuration) String() string {
+	return fmt.Sprintf("identity.Configuration Proxy=%s Security=%s",
+		c.Proxy, c.Security,
+	)
+}
+
 type ProxyConfig struct {
 	ApiURL            string `mapstructure:"api_url"`
 	WebURL            string `mapstructure:"web_url"`

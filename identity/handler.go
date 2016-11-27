@@ -15,9 +15,9 @@ var (
 	securityConfig *SecurityConfig
 )
 
-func Setup(proxyCfg *ProxyConfig, securityCfg *SecurityConfig) error {
-	proxyConfig = proxyCfg
-	securityConfig = securityCfg
+func Setup(cfg *Configuration) error {
+	proxyConfig = &cfg.Proxy
+	securityConfig = &cfg.Security
 	return nil
 }
 

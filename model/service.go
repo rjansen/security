@@ -89,7 +89,7 @@ func loginCallback(cookieName string, loginCallbackURL string, session *Session)
 		httpClient = fast.NewFastHTTPClient()
 	}
 	privateSession := identity.Session{
-		Id:       privateSessionID,
+		ID:       privateSessionID,
 		Username: session.Username,
 		Roles:    []string{"e-user"},
 		Issuer:   "e-pedion.com/security",
