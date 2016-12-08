@@ -15,6 +15,18 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+//Logout removes the provided session
+func Logout(session *Session) error {
+	if err := cache.Execute(session.Del); err != nil {
+		logger.Error("Logout.DelSessionError",
+			logger.String("Session", session.String()),
+			logger.Err(err),
+		)
+		return err
+	}
+	return nil
+}
+
 //Authenticate loads the login representation and check his credentials
 func Authenticate(username string, password string) (*Session, error) {
 	login := &Login{

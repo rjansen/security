@@ -350,16 +350,27 @@ type LogoutHandler struct {
 func (l *LogoutHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
 	session := l.GetSession()
 	logger.Info("LogoutHandler.SessionFound", logger.String(session.ID, session.Username))
+
+	err := data.Logout(session)
+	if err != nil {
+		logger.Error("LogoutHandler.LogoutFailed",
+			logger.String("Session", session.String()),
+			logger.Err(err),
+		)
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		return
+	}
+
 	nowTime := time.Now()
 	expiresTime := nowTime.AddDate(0, 0, -1)
-	//logger.Infof("LogoutHandler.CookieExpires: Session[%v=%v] Now[%v] Expires[%v]", privateSession.ID, privateSession.Username, nowTime, expiresTime)
 	logger.Info("LogoutHandler.CookieExpires",
 		logger.Time("Now", nowTime),
 		logger.Time("Expires", expiresTime),
 	)
 	var logoutCookie fasthttp.Cookie
 	logoutCookie.SetKey(l.SecurityConfig.CookieName)
-	logoutCookie.SetDomain(l.SecurityConfig.CookieDomain)
+	// logoutCookie.SetDomain(l.SecurityConfig.CookieDomain)
+	logoutCookie.SetValueBytes([]byte{})
 	logoutCookie.SetPath(l.SecurityConfig.CookiePath)
 	logoutCookie.SetExpire(expiresTime)
 	ctx.Response.Header.SetCookie(&logoutCookie)

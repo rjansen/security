@@ -195,6 +195,20 @@ func (s *Session) Get(client cache.Client) error {
 	return nil
 }
 
+//Del removes the session from cache
+func (s *Session) Del(client cache.Client) error {
+	if strings.TrimSpace(s.ID) == "" {
+		return errors.New("data.Session.DelErr Message='Session.ID is empty'")
+	}
+	if err := client.Delete(s.ID); err != nil {
+		return fmt.Errorf("data.DelSessionError: Message='ImpossibleToDelCachedSession: ID=%s Cause=%s'", s.ID, err.Error())
+	}
+	logger.Info("SessionDeletedFromCache",
+		logger.String("ID", s.ID),
+	)
+	return nil
+}
+
 //Marshal writes a json representation of the struct instance
 func (s *Session) Marshal(w io.Writer) error {
 	return json.Marshal(w, &s)
