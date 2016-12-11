@@ -2,6 +2,7 @@ package identity
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"regexp"
 	"strings"
@@ -151,15 +152,10 @@ func (handler *CookieAuthenticatedHandler) HandleRequest(ctx *fasthttp.RequestCt
 	}
 }
 
-func NewHeaderAuthenticatedHandler(handler AuthenticatableHandler) http.Handler {
-	return &HeaderAuthenticatedHandler{AuthenticatableHandler: handler}
-}
+//SessionHTTPHandlerFunc is an interface to authorize handlers
+type SessionHTTPHandlerFunc func(session *Session, w http.ResponseWriter, r *http.Request) error
 
-type HeaderAuthenticatedHandler struct {
-	AuthenticatableHandler
-}
-
-func (handler *HeaderAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func authorizeServeHTTP(handler SessionHTTPHandlerFunc, w http.ResponseWriter, r *http.Request) {
 	serveUnauthorizedResult := func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("HandleResult[Status=UnauthorizedRequest Message=401 StatusUnauthorized]")
 		w.WriteHeader(http.StatusUnauthorized)
@@ -190,17 +186,30 @@ func (handler *HeaderAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *h
 			)
 			serveUnauthorizedResult(w, r)
 		} else {
-			handler.AuthenticatableHandler.SetSession(session)
-			//r.SetBasicAuth("FFM_ID", ffmId);
-			//r.Header.Set("X-FFM_ID", sid)
-			handler.AuthenticatableHandler.ServeHTTP(w, r)
+			err := handler(session, w, r)
+			if err != nil {
+				logger.Error("AuthorizedHandleErr",
+					logger.Struct("Session", session),
+					logger.Err(err),
+				)
+			}
 		}
 	} else {
 		serveUnauthorizedResult(w, r)
 	}
 }
 
-func (handler *HeaderAuthenticatedHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
+//Authorize wraps the provided session handler to an authorized handler func
+func Authorize(handler SessionHTTPHandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		authorizeServeHTTP(handler, w, r)
+	}
+}
+
+//SessionFastHandlerFunc is an interface to authorize fasthttp handlers
+type SessionFastHandlerFunc func(session *Session, c context.Context, ctx *fasthttp.RequestCtx) error
+
+func authorizeHandler(handler SessionFastHandlerFunc, c context.Context, ctx *fasthttp.RequestCtx) {
 	serveUnauthorizedResult := func() {
 		logger.Info("HandleResult[Status=UnauthorizedRequest Message=401 StatusUnauthorized]")
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
@@ -227,14 +236,57 @@ func (handler *HeaderAuthenticatedHandler) HandleRequest(ctx *fasthttp.RequestCt
 			)
 			serveUnauthorizedResult()
 		} else {
-			handler.AuthenticatableHandler.SetSession(session)
-			//r.SetBasicAuth("FFM_ID", ffmId);
-			//r.Header.Set("X-FFM_ID", sid)
-			handler.AuthenticatableHandler.HandleRequest(ctx)
+			err := handler(session, c, ctx)
+			if err != nil {
+				logger.Error("AuthorizedHandleErr",
+					logger.Struct("session", session),
+					logger.Err(err),
+				)
+			}
 		}
 	} else {
 		serveUnauthorizedResult()
 	}
+}
+
+//AuthorizeFast wraps the provided a fasthttp session handler to an authorized fasthttp handler func
+func AuthorizeFast(handler SessionFastHandlerFunc) fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+		c := context.Background()
+		authorizeHandler(handler, c, ctx)
+	}
+}
+
+func NewHeaderAuthenticatedHandler(handler AuthenticatableHandler) http.Handler {
+	return &HeaderAuthenticatedHandler{
+		serveHTTP: Authorize(
+			func(session *Session, w http.ResponseWriter, r *http.Request) error {
+				handler.SetSession(session)
+				handler.ServeHTTP(w, r)
+				return nil
+			},
+		),
+		handleRequest: AuthorizeFast(
+			func(session *Session, c context.Context, ctx *fasthttp.RequestCtx) error {
+				handler.SetSession(session)
+				handler.HandleRequest(ctx)
+				return nil
+			},
+		),
+	}
+}
+
+type HeaderAuthenticatedHandler struct {
+	serveHTTP     http.HandlerFunc
+	handleRequest fasthttp.RequestHandler
+}
+
+func (handler *HeaderAuthenticatedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	handler.serveHTTP(w, r)
+}
+
+func (handler *HeaderAuthenticatedHandler) HandleRequest(ctx *fasthttp.RequestCtx) {
+	handler.handleRequest(ctx)
 }
 
 func NewRequestMethodHandler(get Handler, post Handler) *RequestMethodHandler {
